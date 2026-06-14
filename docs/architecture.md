@@ -114,7 +114,7 @@ Ported from kmd's `DESIGN.md`:
 ## Package Structure
 
 ```
-com.kmd.markdownreader/
+love.axis.kmd-unity/
 ├── package.json
 ├── README.md
 ├── CHANGELOG.md
