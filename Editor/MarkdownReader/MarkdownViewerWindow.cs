@@ -87,6 +87,7 @@ namespace Kmd.MarkdownReader
 
             _renderer = new UIMarkdownRenderer();
             rootVisualElement.Add(_renderer.RootElement);
+            ThemeManager.Register(rootVisualElement);
 
             if (!string.IsNullOrEmpty(_currentPath))
             {
@@ -102,6 +103,7 @@ namespace Kmd.MarkdownReader
 
         private void OnDisable()
         {
+            ThemeManager.Unregister(rootVisualElement);
             EditorApplication.update -= OnEditorUpdate;
             rootVisualElement.UnregisterCallback<DragPerformEvent>(OnDragPerform);
             rootVisualElement.UnregisterCallback<DragUpdatedEvent>(OnDragUpdated);

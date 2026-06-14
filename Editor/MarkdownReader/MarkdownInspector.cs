@@ -33,6 +33,7 @@ namespace Kmd.MarkdownReader
             _root = new VisualElement { name = "md-inspector-root" };
             _renderer = new UIMarkdownRenderer();
             _root.Add(_renderer.RootElement);
+            ThemeManager.Register(_root);
 
             TryRender(force: true);
             _pollItem = _root.schedule.Execute(() => TryRender(force: false)).Every(PollIntervalMs);
@@ -102,6 +103,7 @@ namespace Kmd.MarkdownReader
 
         private void OnDisable()
         {
+            ThemeManager.Unregister(_root);
             _pollItem?.Pause();
             _pollItem = null;
             _cachedContent = null;

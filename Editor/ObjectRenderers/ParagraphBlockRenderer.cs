@@ -7,7 +7,8 @@ namespace Kmd.MarkdownReader
     {
         protected override void Write(UIMarkdownRenderer renderer, ParagraphBlock obj)
         {
-            renderer.StartNewText();
+            var label = renderer.StartTextElement("md-paragraph");
+            label.AddToClassList("md-paragraph");
             renderer.WriteChildren(obj.Inline);
             renderer.FlushText();
         }
