@@ -107,7 +107,7 @@ namespace Kmd.MarkdownReader
             {
                 ContentElement.Clear();
                 _blockStack.Clear();
-                var errorLabel = new Label("Error rendering markdown:\n" + ex.Message)
+                var errorLabel = new Label("Error rendering markdown:\n" + ex.Message + "\n\n" + ex.StackTrace)
                 {
                     name = "md-error",
                 };

@@ -99,15 +99,32 @@ namespace Kmd.MarkdownReader
             rootVisualElement.RegisterCallback<DragUpdatedEvent>(OnDragUpdated);
 
             EditorApplication.update += OnEditorUpdate;
+            Selection.selectionChanged += OnSelectionChanged;
         }
 
         private void OnDisable()
         {
+            Selection.selectionChanged -= OnSelectionChanged;
             ThemeManager.Unregister(rootVisualElement);
             EditorApplication.update -= OnEditorUpdate;
             rootVisualElement.UnregisterCallback<DragPerformEvent>(OnDragPerform);
             rootVisualElement.UnregisterCallback<DragUpdatedEvent>(OnDragUpdated);
             TeardownWatcher();
+        }
+
+        private void OnSelectionChanged()
+        {
+            var asset = Selection.activeObject as TextAsset;
+            if (asset == null)
+            {
+                return;
+            }
+
+            var path = AssetDatabase.GetAssetPath(asset);
+            if (!string.IsNullOrEmpty(path) && path.EndsWith(".md", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowFile(path);
+            }
         }
 
         private void OnWatchedFileChanged(object sender, FileSystemEventArgs args)
