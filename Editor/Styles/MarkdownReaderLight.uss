@@ -215,3 +215,22 @@
     color: #656D76;
     -unity-font-style: italic;
 }
+
+.md-image {
+    max-width: 100%;
+    margin-top: 6px;
+    margin-bottom: 12px;
+}
+
+.md-image-error {
+    min-width: 140px;
+    min-height: 28px;
+    border-top-width: 1px;
+    border-right-width: 1px;
+    border-bottom-width: 1px;
+    border-left-width: 1px;
+    border-top-color: #CF222E;
+    border-right-color: #CF222E;
+    border-bottom-color: #CF222E;
+    border-left-color: #CF222E;
+}

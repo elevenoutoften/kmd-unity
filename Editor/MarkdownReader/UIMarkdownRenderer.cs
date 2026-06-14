@@ -14,6 +14,9 @@ namespace Kmd.MarkdownReader
         public ScrollView RootElement { get; }
         public VisualElement ContentElement { get; }
 
+        /// <summary>Directory used to resolve relative image/link paths.</summary>
+        public string BaseDirectory { get; set; }
+
         private readonly Stack<VisualElement> _blockStack = new Stack<VisualElement>();
 
         private Label _currentLabel;
@@ -125,6 +128,7 @@ namespace Kmd.MarkdownReader
                 return RootElement;
             }
 
+            BaseDirectory = Path.GetDirectoryName(Path.GetFullPath(path));
             var markdown = File.ReadAllText(path);
             return Render(markdown);
         }

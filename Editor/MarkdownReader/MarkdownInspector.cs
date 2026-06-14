@@ -98,6 +98,7 @@ namespace Kmd.MarkdownReader
             _cachedContent = content;
             _cachedWriteTicks = writeTicks;
             _cachedLength = length;
+            _renderer.BaseDirectory = Path.GetDirectoryName(fullPath);
             _renderer.Render(content);
         }
 

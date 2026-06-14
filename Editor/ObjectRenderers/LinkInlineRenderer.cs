@@ -2,6 +2,7 @@ using System.Net;
 using Markdig.Renderers;
 using Markdig.Syntax.Inlines;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Kmd.MarkdownReader
@@ -13,12 +14,10 @@ namespace Kmd.MarkdownReader
             if (obj.IsImage)
             {
                 renderer.FlushText();
-                var imageLabel = new Label("[Image: " + (obj.Url ?? string.Empty) + "]")
-                {
-                    name = "md-image-placeholder",
-                };
-                imageLabel.AddToClassList("md-image-placeholder");
-                renderer.AddToCurrentBlock(imageLabel);
+                var image = new Image { name = "md-image", scaleMode = ScaleMode.ScaleToFit };
+                image.AddToClassList("md-image");
+                renderer.AddToCurrentBlock(image);
+                ImageLoader.Load(image, obj.Url ?? string.Empty, renderer.BaseDirectory);
                 return;
             }
 
