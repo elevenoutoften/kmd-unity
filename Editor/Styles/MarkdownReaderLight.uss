@@ -298,6 +298,40 @@
     -unity-font-style: italic;
 }
 
+/* Footnotes --------------------------------------------------------------- */
+.md-footnotes {
+    margin-top: 28px;
+}
+
+.md-footnotes-rule {
+    height: 1px;
+    background-color: #D8DEE6;
+    margin-bottom: 12px;
+}
+
+.md-footnote {
+    flex-direction: row;
+    margin-bottom: 6px;
+}
+
+.md-footnote-num {
+    min-width: 28px;
+    flex-shrink: 0;
+    padding-right: 8px;
+    -unity-text-align: upper-right;
+    color: #656D76;
+}
+
+.md-footnote-content {
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.md-footnote-content .md-paragraph {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
 .md-image {
     max-width: 100%;
     margin-top: 6px;

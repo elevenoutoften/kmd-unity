@@ -48,6 +48,7 @@ namespace Kmd.MarkdownReader
             ObjectRenderers.Add(new TaskListInlineRenderer());
             ObjectRenderers.Add(new LinkInlineRenderer());
             ObjectRenderers.Add(new AutolinkInlineRenderer());
+            ObjectRenderers.Add(new FootnoteLinkRenderer());
             ObjectRenderers.Add(new ThematicBreakBlockRenderer());
             ObjectRenderers.Add(new ListBlockRenderer());
             ObjectRenderers.Add(new AlertBlockRenderer()); // before QuoteBlockRenderer (AlertBlock : QuoteBlock)
@@ -55,6 +56,7 @@ namespace Kmd.MarkdownReader
             ObjectRenderers.Add(new FencedCodeBlockRenderer());
             ObjectRenderers.Add(new CodeBlockRenderer());
             ObjectRenderers.Add(new TableBlockRenderer());
+            ObjectRenderers.Add(new FootnoteGroupRenderer());
         }
 
         public static MarkdownPipeline CreatePipeline()
