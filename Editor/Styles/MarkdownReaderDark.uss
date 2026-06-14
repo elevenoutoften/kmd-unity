@@ -63,6 +63,40 @@
     white-space: normal;
 }
 
+/* Lists ------------------------------------------------------------------- */
+.md-list {
+    margin-top: 4px;
+    margin-bottom: 12px;
+}
+
+.md-list .md-list {
+    margin-top: 3px;
+    margin-bottom: 3px;
+}
+
+.md-list-item {
+    flex-direction: row;
+    margin-bottom: 3px;
+}
+
+.md-list-marker {
+    min-width: 22px;
+    flex-shrink: 0;
+    padding-right: 8px;
+    -unity-text-align: upper-right;
+    color: #8B949E;
+}
+
+.md-list-item-content {
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+.md-list-item-content .md-paragraph {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
 /* Inline code ------------------------------------------------------------- */
 .md-code-inline {
     -unity-font-definition: url("../../Fonts/JetBrainsMono/JetBrainsMono-Regular.ttf");

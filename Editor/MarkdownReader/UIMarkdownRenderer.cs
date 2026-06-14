@@ -41,6 +41,7 @@ namespace Kmd.MarkdownReader
             ObjectRenderers.Add(new EmphasisInlineRenderer());
             ObjectRenderers.Add(new CodeInlineRenderer());
             ObjectRenderers.Add(new LineBreakInlineRenderer());
+            ObjectRenderers.Add(new TaskListInlineRenderer());
             ObjectRenderers.Add(new LinkInlineRenderer());
             ObjectRenderers.Add(new ThematicBreakBlockRenderer());
             ObjectRenderers.Add(new ListBlockRenderer());
