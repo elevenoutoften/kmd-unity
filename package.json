@@ -1,6 +1,6 @@
 {
   "name": "love.axis.kmd-unity",
-  "displayName": "kmd Markdown Reader",
+  "displayName": "Kawaii MD reader in Unity",
   "version": "0.1.0",
   "unity": "2022.3",
   "description": "Beautiful Markdown rendering in the Unity Editor inspector. Native UIToolkit + Markdig port of kmd reader mode.",
