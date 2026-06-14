@@ -12,6 +12,9 @@ namespace Kmd.MarkdownReader
         private string _currentPath;
         private FileSystemWatcher _watcher;
 
+        // Set from the watcher's background thread, drained on the main thread.
+        private volatile bool _renderQueued;
+
         [MenuItem("Window/Kmd/Markdown Viewer")]
         public static void ShowWindow()
         {
@@ -93,10 +96,13 @@ namespace Kmd.MarkdownReader
 
             rootVisualElement.RegisterCallback<DragPerformEvent>(OnDragPerform);
             rootVisualElement.RegisterCallback<DragUpdatedEvent>(OnDragUpdated);
+
+            EditorApplication.update += OnEditorUpdate;
         }
 
         private void OnDisable()
         {
+            EditorApplication.update -= OnEditorUpdate;
             rootVisualElement.UnregisterCallback<DragPerformEvent>(OnDragPerform);
             rootVisualElement.UnregisterCallback<DragUpdatedEvent>(OnDragUpdated);
             TeardownWatcher();
@@ -104,7 +110,22 @@ namespace Kmd.MarkdownReader
 
         private void OnWatchedFileChanged(object sender, FileSystemEventArgs args)
         {
-            EditorApplication.delayCall += RenderFile;
+            // FileSystemWatcher raises this on a background thread and emits several
+            // events per save. Just flag it; the main-thread pump below coalesces
+            // the burst into a single render and avoids touching UIToolkit/editor
+            // state off the main thread.
+            _renderQueued = true;
+        }
+
+        private void OnEditorUpdate()
+        {
+            if (!_renderQueued)
+            {
+                return;
+            }
+
+            _renderQueued = false;
+            RenderFile();
         }
 
         private void OnDragUpdated(DragUpdatedEvent evt)
