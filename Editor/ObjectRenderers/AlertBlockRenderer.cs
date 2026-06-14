@@ -31,6 +31,7 @@ namespace Kmd.MarkdownReader
             renderer.WriteChildren(alert);
 
             renderer.FinishBlock();
+            UIMarkdownRenderer.TrimTrailingMargin(container);
         }
     }
 }

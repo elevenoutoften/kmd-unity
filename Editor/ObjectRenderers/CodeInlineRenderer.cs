@@ -1,7 +1,6 @@
 using Markdig.Renderers;
 using Markdig.Syntax.Inlines;
-using UnityEngine;
-using UnityEngine.UIElements;
+using UnityEditor;
 
 namespace Kmd.MarkdownReader
 {
@@ -9,20 +8,19 @@ namespace Kmd.MarkdownReader
     {
         protected override void Write(UIMarkdownRenderer renderer, CodeInline obj)
         {
-            renderer.FlushText();
+            // Inline code must stay part of the surrounding text flow. A separate
+            // Label is a flex child, so it dropped onto its own line and pushed the
+            // following text down. Emit it as rich text into the current paragraph
+            // label instead. UI Toolkit can't pad a mono chip inline, so approximate
+            // kmd's inline-code styling with a tinted <mark> highlight in the
+            // tertiary color.
+            var dark = EditorGUIUtility.isProSkin;
+            var foreground = dark ? "#9b6dff" : "#7c4dff";
+            var background = dark ? "#2c2f35ff" : "#eceff3ff";
 
-            var label = new Label(obj.Content)
-            {
-                name = "md-code-inline",
-                enableRichText = false,
-            };
-            label.AddToClassList("md-code-inline");
-            label.RegisterCallback<ClickEvent>(evt =>
-            {
-                GUIUtility.systemCopyBuffer = obj.Content;
-            });
-
-            renderer.AddToCurrentBlock(label);
+            renderer.WriteText("<mark=" + background + "><color=" + foreground + ">");
+            renderer.WriteText(UIMarkdownRenderer.EscapeRichText(obj.Content));
+            renderer.WriteText("</color></mark>");
         }
     }
 }

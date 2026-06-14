@@ -5,6 +5,7 @@ using System.Text;
 using Markdig;
 using Markdig.Extensions.AutoIdentifiers;
 using Markdig.Renderers;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Kmd.MarkdownReader
@@ -26,6 +27,9 @@ namespace Kmd.MarkdownReader
         private readonly StringBuilder _currentText = new StringBuilder();
 
         private readonly Dictionary<string, VisualElement> _headingRegistry = new Dictionary<string, VisualElement>();
+
+        // kmd's --color-selection-bg (tertiary @ 30%); applied to every selectable label.
+        private static readonly Color SelectionColor = new Color(0.608f, 0.427f, 1f, 0.3f);
 
         // Built once: the pipeline is immutable and rebuilding ~12 extensions per renderer is wasteful.
         private static readonly MarkdownPipeline SharedPipeline = CreatePipeline();
@@ -96,6 +100,7 @@ namespace Kmd.MarkdownReader
                 };
                 emptyLabel.AddToClassList("md-empty");
                 ContentElement.Add(emptyLabel);
+                MakeContentSelectable();
                 return RootElement;
             }
 
@@ -120,7 +125,35 @@ namespace Kmd.MarkdownReader
                 ContentElement.Add(errorLabel);
             }
 
+            MakeContentSelectable();
             return RootElement;
+        }
+
+        // UI Toolkit text selection is per-element (there is no document-wide
+        // selection and no USS property for it), so flag every rendered label as
+        // selectable once the tree is built. This lets users select and copy text in
+        // both the inspector and the viewer window.
+        private void MakeContentSelectable()
+        {
+            ContentElement.Query<Label>().ForEach(label =>
+            {
+                var selection = label.selection;
+                selection.isSelectable = true;
+                selection.selectionColor = SelectionColor;
+            });
+        }
+
+        // USS has no :last-child selector, so a stylesheet can't strip the trailing
+        // bottom margin of the last child inside a container. Without it, blockquotes
+        // and alerts gain a doubled gap at the bottom (inner padding + the last
+        // paragraph's margin). Call this after writing a container's children to
+        // match kmd's `blockquote/alert p:last-child { margin-bottom: 0 }`.
+        public static void TrimTrailingMargin(VisualElement container)
+        {
+            if (container != null && container.childCount > 0)
+            {
+                container.ElementAt(container.childCount - 1).style.marginBottom = 0f;
+            }
         }
 
         public VisualElement RenderFile(string path)
@@ -134,6 +167,7 @@ namespace Kmd.MarkdownReader
                 };
                 errorLabel.AddToClassList("md-error");
                 ContentElement.Add(errorLabel);
+                MakeContentSelectable();
                 return RootElement;
             }
 
