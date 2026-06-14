@@ -50,6 +50,7 @@ namespace Kmd.MarkdownReader
             ObjectRenderers.Add(new AutolinkInlineRenderer());
             ObjectRenderers.Add(new ThematicBreakBlockRenderer());
             ObjectRenderers.Add(new ListBlockRenderer());
+            ObjectRenderers.Add(new AlertBlockRenderer()); // before QuoteBlockRenderer (AlertBlock : QuoteBlock)
             ObjectRenderers.Add(new QuoteBlockRenderer());
             ObjectRenderers.Add(new FencedCodeBlockRenderer());
             ObjectRenderers.Add(new CodeBlockRenderer());
