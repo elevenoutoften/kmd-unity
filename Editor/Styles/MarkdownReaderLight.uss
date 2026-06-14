@@ -77,23 +77,8 @@
 .md-list-item-content { flex-grow: 1; flex-shrink: 1; }
 .md-list-item-content .md-paragraph { margin-top: 0; margin-bottom: 0; }
 
-/* Inline code: tertiary text on a muted chip (matches kmd) ---------------- */
-.md-code-inline {
-    align-self: flex-start;
-    -unity-font-definition: url("../../Fonts/JetBrainsMono/JetBrainsMono-Regular.ttf");
-    font-size: 15px;
-    color: #7c4dff;
-    background-color: #eceff3;
-    padding-left: 6px;
-    padding-right: 6px;
-    padding-top: 2px;
-    padding-bottom: 2px;
-    border-top-left-radius: 6px;
-    border-top-right-radius: 6px;
-    border-bottom-left-radius: 6px;
-    border-bottom-right-radius: 6px;
-}
-.md-code-inline:hover { background-color: #ffffff; }
+/* Inline code is emitted as rich text inside the paragraph label (so it flows
+   inline), not as its own element — see CodeInlineRenderer. No USS hook here. */
 
 /* Code blocks (fenced container + indented). kmd uses no border. --------- */
 .md-codeblock,
@@ -143,28 +128,21 @@
 }
 .md-codeblock:hover .md-copy-button { opacity: 1; }
 
-/* Tables ------------------------------------------------------------------ */
+/* Tables — kmd uses horizontal rules only (no outer or vertical borders). --- */
 .md-table-scroll { margin-top: 6px; margin-bottom: 16px; max-width: 100%; }
-.md-table {
-    flex-direction: column;
-    border-top-width: 1px;
-    border-left-width: 1px;
-    border-top-color: #d8dee6;
-    border-left-color: #d8dee6;
-}
+.md-table { flex-direction: column; }
 .md-table-header { flex-direction: row; background-color: #eceff3; }
 .md-table-row { flex-direction: row; }
 .md-table-row:hover { background-color: #eceff3; }
 .md-th,
 .md-td {
     flex-shrink: 0;
+    font-size: 14px;
     padding-top: 8px;
     padding-bottom: 8px;
     padding-left: 16px;
     padding-right: 16px;
-    border-right-width: 1px;
     border-bottom-width: 1px;
-    border-right-color: #d8dee6;
     border-bottom-color: #d8dee6;
 }
 .md-th {
