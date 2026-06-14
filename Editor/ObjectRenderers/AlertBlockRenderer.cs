@@ -21,7 +21,9 @@ namespace Kmd.MarkdownReader
             container.AddToClassList("md-alert-" + suffix);
             renderer.StartBlock(container);
 
-            var title = new Label(TitleCase(kind)) { name = "md-alert-title" };
+            // kmd renders alert titles uppercase (CSS text-transform); UI Toolkit
+            // has no text-transform, so use the already-uppercased kind directly.
+            var title = new Label(kind) { name = "md-alert-title" };
             title.AddToClassList("md-alert-title");
             title.AddToClassList("md-alert-title-" + suffix);
             renderer.AddToCurrentBlock(title);
@@ -29,16 +31,6 @@ namespace Kmd.MarkdownReader
             renderer.WriteChildren(alert);
 
             renderer.FinishBlock();
-        }
-
-        private static string TitleCase(string kind)
-        {
-            if (kind.Length == 0)
-            {
-                return kind;
-            }
-
-            return char.ToUpperInvariant(kind[0]) + kind.Substring(1).ToLowerInvariant();
         }
     }
 }

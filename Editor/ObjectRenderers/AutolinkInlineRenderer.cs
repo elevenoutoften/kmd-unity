@@ -15,7 +15,7 @@ namespace Kmd.MarkdownReader
 
             if (UrlPolicy.IsSafe(url))
             {
-                var color = EditorGUIUtility.isProSkin ? "#58A6FF" : "#0969DA";
+                var color = EditorGUIUtility.isProSkin ? "#9b6dff" : "#7c4dff";
                 renderer.WriteText("<link=\"" + LinkInlineRenderer.LinkAttribute(url) + "\"><color=" + color + ">");
                 renderer.WriteText(UIMarkdownRenderer.EscapeRichText(display));
                 renderer.WriteText("</color></link>");
