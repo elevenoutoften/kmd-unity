@@ -34,6 +34,7 @@ namespace Kmd.MarkdownReader
 
             ContentElement = new VisualElement { name = "md-body" };
             RootElement.Add(ContentElement);
+            ContentElement.RegisterCallback<PointerUpLinkTagEvent>(OnLinkClicked);
 
             ObjectRenderers.Add(new HeadingBlockRenderer());
             ObjectRenderers.Add(new ParagraphBlockRenderer());
@@ -43,6 +44,7 @@ namespace Kmd.MarkdownReader
             ObjectRenderers.Add(new LineBreakInlineRenderer());
             ObjectRenderers.Add(new TaskListInlineRenderer());
             ObjectRenderers.Add(new LinkInlineRenderer());
+            ObjectRenderers.Add(new AutolinkInlineRenderer());
             ObjectRenderers.Add(new ThematicBreakBlockRenderer());
             ObjectRenderers.Add(new ListBlockRenderer());
             ObjectRenderers.Add(new QuoteBlockRenderer());
@@ -219,6 +221,26 @@ namespace Kmd.MarkdownReader
             }
 
             return RootElement;
+        }
+
+        private void OnLinkClicked(PointerUpLinkTagEvent evt)
+        {
+            var url = evt.linkID;
+            if (string.IsNullOrEmpty(url))
+            {
+                return;
+            }
+
+            switch (UrlPolicy.Classify(url))
+            {
+                case UrlKind.Fragment:
+                    ScrollToHeading(url.TrimStart('#'));
+                    break;
+                case UrlKind.External:
+                    UnityEngine.Application.OpenURL(url);
+                    break;
+                // Relative -> reserved for opening .md in the viewer (future); Blocked -> ignore.
+            }
         }
 
         public override object Render(Markdig.Syntax.MarkdownObject markdownObject)
