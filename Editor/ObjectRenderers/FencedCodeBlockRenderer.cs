@@ -13,8 +13,20 @@ namespace Kmd.MarkdownReader
             var codeText = obj.Lines.ToString();
             var language = LanguageMap.Resolve(obj.Info);
 
-            var label = new Label { name = "md-codeblock" };
-            label.AddToClassList("md-codeblock");
+            // Container (box styling + positioning context for the copy button).
+            // The code Label must NOT hold the button as a child — a Label is a
+            // text element and a child element breaks its height, overlapping the
+            // following content.
+            var container = new VisualElement { name = "md-codeblock" };
+            container.AddToClassList("md-codeblock");
+
+            // Long lines scroll horizontally instead of stretching the document
+            // (mirrors the GFM table wrapper).
+            var scroll = new ScrollView(ScrollViewMode.Horizontal) { name = "md-codeblock-scroll" };
+            scroll.AddToClassList("md-codeblock-scroll");
+
+            var label = new Label { name = "md-codeblock-text" };
+            label.AddToClassList("md-codeblock-text");
 
             if (language != null)
             {
@@ -29,9 +41,10 @@ namespace Kmd.MarkdownReader
                 label.text = codeText;
             }
 
-            // Copy button overlays the block (shown on hover via USS).
-            label.Add(CodeBlockCopyButton.Create(codeText));
-            renderer.AddToCurrentBlock(label);
+            scroll.Add(label);
+            container.Add(scroll);
+            container.Add(CodeBlockCopyButton.Create(codeText));
+            renderer.AddToCurrentBlock(container);
         }
     }
 }

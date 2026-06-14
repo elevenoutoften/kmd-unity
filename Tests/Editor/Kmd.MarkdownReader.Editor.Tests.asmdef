@@ -10,7 +10,7 @@
   "excludePlatforms": [],
   "allowAnyPlatform": false,
   "overrideReferences": true,
-  "precompiledReferences": ["nunit.framework.dll"],
+  "precompiledReferences": ["nunit.framework.dll", "Markdig.dll", "ColorCode.Core.dll"],
   "autoReferenced": false,
   "defineConstraints": ["UNITY_INCLUDE_TESTS"],
   "versionDefines": [],

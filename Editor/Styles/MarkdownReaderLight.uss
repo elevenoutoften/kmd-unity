@@ -145,6 +145,10 @@
     white-space: nowrap;
 }
 
+.md-codeblock-text {
+    white-space: nowrap;
+}
+
 .md-copy-button {
     position: absolute;
     top: 6px;
@@ -205,10 +209,7 @@
 
 .md-th,
 .md-td {
-    flex-grow: 1;
-    flex-basis: 0;
-    flex-shrink: 1;
-    width: 0;
+    flex-shrink: 0;
     padding-top: 6px;
     padding-bottom: 6px;
     padding-left: 10px;
