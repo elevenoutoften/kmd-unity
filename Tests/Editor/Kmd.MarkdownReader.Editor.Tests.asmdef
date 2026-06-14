@@ -1,0 +1,18 @@
+{
+  "name": "Kmd.MarkdownReader.Editor.Tests",
+  "rootNamespace": "Kmd.MarkdownReader.Tests",
+  "references": [
+    "Kmd.MarkdownReader.Editor",
+    "UnityEngine.TestRunner",
+    "UnityEditor.TestRunner"
+  ],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowAnyPlatform": false,
+  "overrideReferences": true,
+  "precompiledReferences": ["nunit.framework.dll"],
+  "autoReferenced": false,
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
