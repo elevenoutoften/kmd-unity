@@ -47,6 +47,7 @@ namespace Kmd.MarkdownReader
             ObjectRenderers.Add(new EmphasisInlineRenderer());
             ObjectRenderers.Add(new CodeInlineRenderer());
             ObjectRenderers.Add(new LineBreakInlineRenderer());
+            ObjectRenderers.Add(new MathInlineRenderer());
             ObjectRenderers.Add(new TaskListInlineRenderer());
             ObjectRenderers.Add(new LinkInlineRenderer());
             ObjectRenderers.Add(new AutolinkInlineRenderer());
@@ -235,10 +236,10 @@ namespace Kmd.MarkdownReader
             return RootElement;
         }
 
-        // UI Toolkit's text engine decodes &amp;/&lt;/&gt; but NOT numeric character
-        // references (e.g. &#39;), so escape only the markup-significant characters
-        // rather than WebUtility.HtmlEncode — which turns ' and " into &#39;/&quot;
-        // that then render literally.
+        // UI Toolkit's rich-text parser treats only '<' as markup and decodes NO
+        // HTML entities — &lt;, &#39;, &amp; all render literally. So neutralize
+        // just '<' with a trailing zero-width space (it no longer starts a tag but
+        // still shows as '<'); every other character (incl. & > ' ") is left as-is.
         public static string EscapeRichText(string text)
         {
             if (string.IsNullOrEmpty(text))
@@ -246,10 +247,7 @@ namespace Kmd.MarkdownReader
                 return text;
             }
 
-            return text
-                .Replace("&", "&amp;")
-                .Replace("<", "&lt;")
-                .Replace(">", "&gt;");
+            return text.Replace("<", "<​");
         }
 
         public override object Render(Markdig.Syntax.MarkdownObject markdownObject)

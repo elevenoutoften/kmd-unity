@@ -1,5 +1,6 @@
 using Markdig.Renderers;
 using Markdig.Extensions.TaskLists;
+using UnityEditor;
 
 namespace Kmd.MarkdownReader
 {
@@ -9,7 +10,15 @@ namespace Kmd.MarkdownReader
     {
         protected override void Write(UIMarkdownRenderer renderer, TaskList obj)
         {
-            renderer.WriteText(obj.Checked ? "☑ " : "☐ "); // checked / unchecked box
+            if (obj.Checked)
+            {
+                var color = EditorGUIUtility.isProSkin ? "#9b6dff" : "#7c4dff";
+                renderer.WriteText("<color=" + color + ">☑</color> "); // filled box
+            }
+            else
+            {
+                renderer.WriteText("☐ "); // empty box
+            }
         }
     }
 }

@@ -1,5 +1,6 @@
 using Markdig.Extensions.Footnotes;
 using Markdig.Renderers;
+using UnityEditor;
 
 namespace Kmd.MarkdownReader
 {
@@ -16,8 +17,10 @@ namespace Kmd.MarkdownReader
             }
 
             var order = obj.Footnote != null ? obj.Footnote.Order : obj.Index;
-            // UI Toolkit has no <sup>; approximate superscript with a smaller size.
-            renderer.WriteText("<link=\"#fn-" + order + "\"><size=70%>[" + order + "]</size></link>");
+            var color = EditorGUIUtility.isProSkin ? "#9b6dff" : "#7c4dff";
+            // UI Toolkit has no <sup>; approximate a superscript footnote ref with a
+            // smaller, link-colored number (matches kmd's purple footnote marks).
+            renderer.WriteText("<link=\"#fn-" + order + "\"><size=70%><color=" + color + ">" + order + "</color></size></link>");
         }
     }
 }
