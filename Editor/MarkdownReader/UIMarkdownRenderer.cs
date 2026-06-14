@@ -17,6 +17,9 @@ namespace Kmd.MarkdownReader
         /// <summary>Directory used to resolve relative image/link paths.</summary>
         public string BaseDirectory { get; set; }
 
+        /// <summary>The most recently parsed document (for outline extraction).</summary>
+        public Markdig.Syntax.MarkdownDocument Document { get; private set; }
+
         private readonly Stack<VisualElement> _blockStack = new Stack<VisualElement>();
 
         private Label _currentLabel;
@@ -83,6 +86,7 @@ namespace Kmd.MarkdownReader
             _blockStack.Clear();
             _currentLabel = null;
             _currentText.Clear();
+            Document = null;
 
             if (string.IsNullOrWhiteSpace(markdown))
             {
@@ -98,6 +102,7 @@ namespace Kmd.MarkdownReader
             try
             {
                 var document = Markdown.Parse(markdown, SharedPipeline);
+                Document = document;
                 _blockStack.Push(ContentElement);
                 Render(document);
                 FlushText();

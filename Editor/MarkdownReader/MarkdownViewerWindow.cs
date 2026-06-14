@@ -9,6 +9,7 @@ namespace Kmd.MarkdownReader
     public class MarkdownViewerWindow : EditorWindow
     {
         private UIMarkdownRenderer _renderer;
+        private DocumentShell _shell;
         private string _currentPath;
         private FileSystemWatcher _watcher;
 
@@ -39,6 +40,7 @@ namespace Kmd.MarkdownReader
             }
 
             _renderer?.RenderFile(_currentPath);
+            _shell?.Refresh();
         }
 
         private void SetupWatcher()
@@ -86,7 +88,8 @@ namespace Kmd.MarkdownReader
             rootVisualElement.Clear();
 
             _renderer = new UIMarkdownRenderer();
-            rootVisualElement.Add(_renderer.RootElement);
+            _shell = new DocumentShell(_renderer);
+            rootVisualElement.Add(_shell);
             ThemeManager.Register(rootVisualElement);
 
             if (!string.IsNullOrEmpty(_currentPath))
