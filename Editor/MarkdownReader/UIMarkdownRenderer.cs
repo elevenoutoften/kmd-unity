@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using Markdig;
 using Markdig.Extensions.AutoIdentifiers;
 using Markdig.Renderers;
@@ -11,20 +12,20 @@ namespace Kmd.MarkdownReader
     public class UIMarkdownRenderer : RendererBase
     {
         public ScrollView RootElement { get; }
-        public VisualElement ContentElement { get; private set; }
+        public VisualElement ContentElement { get; }
 
-        internal readonly Stack<VisualElement> _blockStack = new Stack<VisualElement>();
+        private readonly Stack<VisualElement> _blockStack = new Stack<VisualElement>();
 
         private Label _currentLabel;
-        private string _currentText;
+        private readonly StringBuilder _currentText = new StringBuilder();
 
         private readonly Dictionary<string, VisualElement> _headingRegistry = new Dictionary<string, VisualElement>();
-        private readonly MarkdownPipeline _pipeline;
+
+        // Built once: the pipeline is immutable and rebuilding ~12 extensions per renderer is wasteful.
+        private static readonly MarkdownPipeline SharedPipeline = CreatePipeline();
 
         public UIMarkdownRenderer()
         {
-            _pipeline = CreatePipeline();
-
             RootElement = new ScrollView(ScrollViewMode.Vertical)
             {
                 name = "md-scroll-view",
@@ -56,12 +57,12 @@ namespace Kmd.MarkdownReader
                 .UsePipeTables()
                 .UseGridTables()
                 .UseTaskLists()
-                .UseStrikethrough()
-                .UseEmphasisExtras()
+                .UseEmphasisExtras() // Default options include Strikethrough (~~text~~)
                 .UseFootnotes()
                 .UseYamlFrontMatter()
                 .UseGenericAttributes()
                 .UseAlertBlocks()
+                .UseMathematics()
                 .Build();
         }
 
@@ -71,7 +72,7 @@ namespace Kmd.MarkdownReader
             _headingRegistry.Clear();
             _blockStack.Clear();
             _currentLabel = null;
-            _currentText = string.Empty;
+            _currentText.Clear();
 
             if (string.IsNullOrWhiteSpace(markdown))
             {
@@ -86,7 +87,7 @@ namespace Kmd.MarkdownReader
 
             try
             {
-                var document = Markdown.Parse(markdown, _pipeline);
+                var document = Markdown.Parse(markdown, SharedPipeline);
                 _blockStack.Push(ContentElement);
                 Render(document);
                 FlushText();
@@ -156,7 +157,7 @@ namespace Kmd.MarkdownReader
             };
             AddToCurrentBlock(label);
             _currentLabel = label;
-            _currentText = string.Empty;
+            _currentText.Clear();
             return label;
         }
 
@@ -166,21 +167,21 @@ namespace Kmd.MarkdownReader
             {
                 _currentLabel = new Label { enableRichText = true };
                 AddToCurrentBlock(_currentLabel);
-                _currentText = string.Empty;
+                _currentText.Clear();
             }
 
-            _currentText += text;
+            _currentText.Append(text);
         }
 
         public void FlushText()
         {
-            if (_currentLabel != null && !string.IsNullOrEmpty(_currentText))
+            if (_currentLabel != null && _currentText.Length > 0)
             {
-                _currentLabel.text = _currentText;
+                _currentLabel.text = _currentText.ToString();
             }
 
             _currentLabel = null;
-            _currentText = string.Empty;
+            _currentText.Clear();
         }
 
         public void AddToCurrentBlock(VisualElement element)
