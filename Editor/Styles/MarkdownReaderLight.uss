@@ -78,6 +78,10 @@
     border-bottom-right-radius: 4px;
 }
 
+.md-code-inline:hover {
+    background-color: #E3E6EA;
+}
+
 /* Code blocks (fenced + indented) ---------------------------------------- */
 .md-codeblock,
 .md-code {
