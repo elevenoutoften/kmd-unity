@@ -1,0 +1,14 @@
+{
+  "name": "Kmd.MarkdownReader.Editor",
+  "rootNamespace": "Kmd.MarkdownReader",
+  "references": [],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowAnyPlatform": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

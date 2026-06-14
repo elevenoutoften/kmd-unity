@@ -1,0 +1,14 @@
+{
+  "name": "com.kmd.markdownreader",
+  "displayName": "kmd Markdown Reader",
+  "version": "0.1.0",
+  "unity": "2022.3",
+  "description": "Beautiful Markdown rendering in the Unity Editor inspector. Native UIToolkit + Markdig port of kmd reader mode.",
+  "keywords": ["markdown", "reader", "uitoolkit", "inspector", "kmd"],
+  "category": "Editor Extension",
+  "dependencies": {},
+  "author": {
+    "name": "Nyx Prime",
+    "email": "nyx@axis.love"
+  }
+}
