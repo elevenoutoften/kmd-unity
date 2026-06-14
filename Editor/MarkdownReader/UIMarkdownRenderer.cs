@@ -53,6 +53,7 @@ namespace Kmd.MarkdownReader
             ObjectRenderers.Add(new QuoteBlockRenderer());
             ObjectRenderers.Add(new FencedCodeBlockRenderer());
             ObjectRenderers.Add(new CodeBlockRenderer());
+            ObjectRenderers.Add(new TableBlockRenderer());
         }
 
         public static MarkdownPipeline CreatePipeline()
