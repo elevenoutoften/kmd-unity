@@ -7,18 +7,28 @@ namespace Kmd.MarkdownReader
     {
         protected override void Write(UIMarkdownRenderer renderer, EmphasisInline obj)
         {
-            if (obj.DelimiterCount >= 2)
+            string open, close;
+
+            // ~~text~~ (EmphasisExtras) is strikethrough; ** / __ is bold; * / _ is italic.
+            if (obj.DelimiterChar == '~' && obj.DelimiterCount == 2)
             {
-                renderer.WriteText("<b>");
-                renderer.WriteChildren(obj);
-                renderer.WriteText("</b>");
+                open = "<s>";
+                close = "</s>";
+            }
+            else if (obj.DelimiterCount >= 2)
+            {
+                open = "<b>";
+                close = "</b>";
             }
             else
             {
-                renderer.WriteText("<i>");
-                renderer.WriteChildren(obj);
-                renderer.WriteText("</i>");
+                open = "<i>";
+                close = "</i>";
             }
+
+            renderer.WriteText(open);
+            renderer.WriteChildren(obj);
+            renderer.WriteText(close);
         }
     }
 }

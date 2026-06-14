@@ -7,10 +7,9 @@ namespace Kmd.MarkdownReader
     {
         protected override void Write(UIMarkdownRenderer renderer, LineBreakInline obj)
         {
-            if (obj.IsHard)
-            {
-                renderer.WriteText("\n");
-            }
+            // Hard break -> newline; soft break -> space (so words across wrapped
+            // source lines don't run together).
+            renderer.WriteText(obj.IsHard ? "\n" : " ");
         }
     }
 }
