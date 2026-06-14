@@ -26,6 +26,7 @@
 .DS_Store
 Thumbs.db
 
-# Build
-*.dll
+# Build output (not Plugins/ — those are package dependencies)
+[Bb]in/
+[Oo]bj/
 *.pdb
