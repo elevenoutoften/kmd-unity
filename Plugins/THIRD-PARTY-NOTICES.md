@@ -1,12 +1,13 @@
 # Third-Party Notices
 
-This package includes the following third-party libraries:
+This package redistributes the following third-party components. Each entry has
+been verified against the shipped binary/font metadata.
 
 ## Markdig
 
-- **Version:** 0.38.0
+- **Version:** 1.3.0
 - **License:** BSD-2-Clause
-- **Source:** https://github.com/xoofx/markdown
+- **Source:** https://github.com/xoofx/markdig
 
 Copyright (c) 2018-2024, Alexandre Mutel
 All rights reserved.
@@ -34,15 +35,15 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ---
 
-## ColorCode.Core
+## ColorCode.Core (ColorCode Universal)
 
-- **Version:** 1.0.3
+- **Version:** 2.0.15
 - **License:** MIT
-- **Source:** https://github.com/PowerCommands/ColorCode
+- **Source:** https://github.com/CommunityToolkit/ColorCode-Universal
 
 MIT License
 
-Copyright (c) PowerCommands
+Copyright (c) .NET Foundation and Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -61,3 +62,32 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---
+
+## Inter (font)
+
+- **License:** SIL Open Font License, Version 1.1
+- **Source:** https://github.com/rsms/inter
+- **Files:** `Fonts/Inter/Inter-Regular.ttf`, `Fonts/Inter/Inter-SemiBold.ttf`, `Fonts/Inter/Inter-Bold.ttf`
+
+Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+The full license text is bundled alongside the fonts at `Fonts/Inter/OFL.txt`
+and is also available with a FAQ at https://scripts.sil.org/OFL.
+
+---
+
+## JetBrains Mono (font)
+
+- **License:** SIL Open Font License, Version 1.1
+- **Source:** https://github.com/JetBrains/JetBrainsMono
+- **Files:** `Fonts/JetBrainsMono/JetBrainsMono-Regular.ttf`, `Fonts/JetBrainsMono/JetBrainsMono-Bold.ttf`
+
+Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1.
+The full license text is bundled alongside the fonts at
+`Fonts/JetBrainsMono/OFL.txt` and is also available with a FAQ at
+https://scripts.sil.org/OFL.
