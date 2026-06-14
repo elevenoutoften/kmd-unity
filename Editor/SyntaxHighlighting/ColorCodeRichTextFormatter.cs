@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Net;
 using System.Text;
 using System.Threading;
 using ColorCode;
@@ -137,7 +136,7 @@ namespace Kmd.MarkdownReader
         // Matches the escaping used elsewhere in the renderer (LiteralInlineRenderer).
         private static string Escape(string text)
         {
-            return WebUtility.HtmlEncode(text);
+            return UIMarkdownRenderer.EscapeRichText(text);
         }
 
         private static ILanguageParser BuildParser()

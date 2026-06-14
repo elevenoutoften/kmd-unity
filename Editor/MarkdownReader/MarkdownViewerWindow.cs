@@ -97,6 +97,12 @@ namespace Kmd.MarkdownReader
                 RenderFile();
                 SetupWatcher();
             }
+            else
+            {
+                // Opened (e.g. via the menu) with a .md already selected: show it
+                // immediately instead of an empty shell.
+                OnSelectionChanged();
+            }
 
             rootVisualElement.RegisterCallback<DragPerformEvent>(OnDragPerform);
             rootVisualElement.RegisterCallback<DragUpdatedEvent>(OnDragUpdated);

@@ -1,4 +1,3 @@
-using System.Net;
 using Markdig.Renderers;
 using Markdig.Syntax.Inlines;
 
@@ -8,7 +7,7 @@ namespace Kmd.MarkdownReader
     {
         protected override void Write(UIMarkdownRenderer renderer, LiteralInline obj)
         {
-            var text = WebUtility.HtmlEncode(obj.Content.ToString());
+            var text = UIMarkdownRenderer.EscapeRichText(obj.Content.ToString());
             renderer.WriteText(text);
         }
     }

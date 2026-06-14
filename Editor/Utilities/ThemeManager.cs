@@ -20,6 +20,7 @@ namespace Kmd.MarkdownReader
         private static StyleSheet _lightSheet;
         private static bool _lastIsDark;
         private static bool _hooked;
+        private static bool _needsApply;
 
         public static bool IsDarkTheme => EditorGUIUtility.isProSkin;
 
@@ -44,6 +45,7 @@ namespace Kmd.MarkdownReader
 
             Roots.Add(root);
             ApplyTheme(root);
+            _needsApply = true;
 
             if (!_hooked)
             {
@@ -83,17 +85,22 @@ namespace Kmd.MarkdownReader
         // editor update tick (a cheap bool compare) and re-apply only on a change.
         private static void OnEditorUpdate()
         {
-            if (IsDarkTheme == _lastIsDark)
+            var dark = IsDarkTheme;
+            if (dark == _lastIsDark && !_needsApply)
             {
                 return;
             }
 
-            _lastIsDark = IsDarkTheme;
+            _lastIsDark = dark;
             Roots.RemoveWhere(r => r == null || r.panel == null);
             foreach (var root in Roots)
             {
                 ApplyTheme(root);
             }
+
+            // If the stylesheet wasn't importable yet (e.g. right after a domain
+            // reload), keep retrying on later ticks until it loads and applies.
+            _needsApply = Roots.Count > 0 && GetSheet(dark) == null;
         }
 
         private static StyleSheet GetSheet(bool dark)

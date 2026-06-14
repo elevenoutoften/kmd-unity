@@ -1,4 +1,3 @@
-using System.Net;
 using Markdig.Renderers;
 using Markdig.Syntax.Inlines;
 using UnityEditor;
@@ -18,12 +17,12 @@ namespace Kmd.MarkdownReader
             {
                 var color = EditorGUIUtility.isProSkin ? "#58A6FF" : "#0969DA";
                 renderer.WriteText("<link=\"" + LinkInlineRenderer.LinkAttribute(url) + "\"><color=" + color + ">");
-                renderer.WriteText(WebUtility.HtmlEncode(display));
+                renderer.WriteText(UIMarkdownRenderer.EscapeRichText(display));
                 renderer.WriteText("</color></link>");
             }
             else
             {
-                renderer.WriteText(WebUtility.HtmlEncode(display));
+                renderer.WriteText(UIMarkdownRenderer.EscapeRichText(display));
             }
         }
     }

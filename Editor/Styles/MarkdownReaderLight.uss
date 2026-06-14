@@ -98,6 +98,7 @@
 
 /* Inline code ------------------------------------------------------------- */
 .md-code-inline {
+    align-self: flex-start;
     -unity-font-definition: url("../../Fonts/JetBrainsMono/JetBrainsMono-Regular.ttf");
     font-size: 13px;
     color: #1F2328;
@@ -204,8 +205,10 @@
 
 .md-th,
 .md-td {
-    min-width: 90px;
-    flex-shrink: 0;
+    flex-grow: 1;
+    flex-basis: 0;
+    flex-shrink: 1;
+    width: 0;
     padding-top: 6px;
     padding-bottom: 6px;
     padding-left: 10px;

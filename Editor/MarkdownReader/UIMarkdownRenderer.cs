@@ -235,6 +235,23 @@ namespace Kmd.MarkdownReader
             return RootElement;
         }
 
+        // UI Toolkit's text engine decodes &amp;/&lt;/&gt; but NOT numeric character
+        // references (e.g. &#39;), so escape only the markup-significant characters
+        // rather than WebUtility.HtmlEncode — which turns ' and " into &#39;/&quot;
+        // that then render literally.
+        public static string EscapeRichText(string text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return text;
+            }
+
+            return text
+                .Replace("&", "&amp;")
+                .Replace("<", "&lt;")
+                .Replace(">", "&gt;");
+        }
+
         public override object Render(Markdig.Syntax.MarkdownObject markdownObject)
         {
             Write(markdownObject);
