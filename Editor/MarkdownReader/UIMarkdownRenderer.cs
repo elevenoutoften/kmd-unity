@@ -145,6 +145,13 @@ namespace Kmd.MarkdownReader
         {
             ContentElement.Query<Label>().ForEach(label =>
             {
+                // Leave clickable inline elements (code chips, links) non-selectable so
+                // the selection manipulator doesn't swallow their click/copy/open.
+                if (label.ClassListContains("md-code-inline") || label.ClassListContains("md-inline-link"))
+                {
+                    return;
+                }
+
                 var selection = label.selection;
                 selection.isSelectable = true;
                 selection.selectionColor = SelectionColor;
