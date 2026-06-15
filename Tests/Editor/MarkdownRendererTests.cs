@@ -1,4 +1,8 @@
 using NUnit.Framework;
+using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Text;
 using UnityEngine.UIElements;
 
 namespace Kmd.MarkdownReader.Tests
@@ -10,6 +14,36 @@ namespace Kmd.MarkdownReader.Tests
             var renderer = new UIMarkdownRenderer();
             renderer.Render(markdown);
             return renderer.ContentElement;
+        }
+
+        private static int CountDescendants(VisualElement root)
+        {
+            var count = 0;
+            foreach (var child in root.Children())
+            {
+                count += 1 + CountDescendants(child);
+            }
+
+            return count;
+        }
+
+        private static string BuildLargeDocument()
+        {
+            const string paragraph =
+                "lorem ipsum dolor sit amet consectetur adipiscing elit sed do " +
+                "lorem ipsum dolor sit amet consectetur adipiscing elit sed do " +
+                "lorem ipsum dolor sit amet consectetur adipiscing elit sed do " +
+                "lorem ipsum dolor sit amet consectetur adipiscing elit sed do " +
+                "lorem ipsum dolor sit amet consectetur adipiscing elit sed do";
+
+            var markdown = new StringBuilder();
+            for (var i = 1; i <= 200; i++)
+            {
+                markdown.Append("# Heading ").Append(i).Append('\n').Append('\n');
+                markdown.Append(paragraph).Append('\n').Append('\n');
+            }
+
+            return markdown.ToString();
         }
 
         [Test]
@@ -112,21 +146,89 @@ namespace Kmd.MarkdownReader.Tests
         }
 
         [Test]
-        public void BlockedLinkScheme_RendersNoLinkTag()
+        public void LinkInParagraph_EmitsInlineFlow()
         {
-            var body = Render("[x](javascript:alert(1))");
-            var paragraph = body.Q<Label>(className: "md-paragraph");
+            var body = Render("[x](https://example.com)");
+            var paragraph = body.Q(className: "md-paragraph");
             Assert.IsNotNull(paragraph);
-            StringAssert.DoesNotContain("<link", paragraph.text);
+            Assert.IsTrue(paragraph.ClassListContains("md-inline-flow"));
         }
 
         [Test]
-        public void SafeLink_EmitsLinkTag()
+        public void InlineCodeInParagraph_EmitsChip()
+        {
+            var body = Render("`code`");
+            var paragraph = body.Q(className: "md-paragraph");
+            Assert.IsNotNull(paragraph);
+            Assert.IsNotNull(paragraph.Q(className: "md-code-inline"));
+        }
+
+        [Test]
+        public void MixedInlineContent_EmitsRunsAndChips()
+        {
+            var body = Render("text `code` more");
+            var paragraph = body.Q(className: "md-paragraph");
+            Assert.IsNotNull(paragraph);
+            Assert.IsNotNull(paragraph.Q(className: "md-inline-run"));
+            Assert.IsNotNull(paragraph.Q(className: "md-code-inline"));
+        }
+
+        [Test]
+        public void BlockedLinkScheme_RendersNoLinkTag()
+        {
+            var body = Render("[x](javascript:alert(1))");
+            var paragraph = body.Q(className: "md-paragraph");
+            Assert.IsNotNull(paragraph);
+            var labels = paragraph.Query<Label>().ToList();
+            Assert.IsFalse(labels.Any(label => !string.IsNullOrEmpty(label.text) && label.text.Contains("<link=")));
+        }
+
+        [Test]
+        public void RichTextLink_EmitsLinkTag()
         {
             var body = Render("[x](https://example.com)");
-            var paragraph = body.Q<Label>(className: "md-paragraph");
+            var paragraph = body.Q(className: "md-paragraph");
             Assert.IsNotNull(paragraph);
-            StringAssert.Contains("<link", paragraph.text);
+            Assert.IsTrue(paragraph.ClassListContains("md-inline-flow"));
+
+            var run = paragraph.Query<Label>(className: "md-inline-run").ToList().FirstOrDefault(label => label.text.Contains("<link="));
+            Assert.IsNotNull(run);
+            StringAssert.Contains("<link=", run.text);
+        }
+
+        [Test]
+        public void BlockedLinkInFlow_NoLinkTag()
+        {
+            var body = Render("[x](javascript:alert(1))");
+            var paragraph = body.Q(className: "md-paragraph");
+            Assert.IsNotNull(paragraph);
+
+            var labels = paragraph.Query<Label>().ToList();
+            Assert.IsFalse(labels.Any(label => !string.IsNullOrEmpty(label.text) && label.text.Contains("<link=")));
+        }
+
+        [Test]
+        public void LargeDocument_ElementCountBudget()
+        {
+            var body = Render(BuildLargeDocument());
+            Assert.Less(CountDescendants(body), 3000);
+        }
+
+        [Test]
+        public void LargeDocument_RenderTimeBudget()
+        {
+            if (Type.GetType("System.Diagnostics.Stopwatch") == null)
+            {
+                Assert.Ignore("Stopwatch not available");
+            }
+
+            var markdown = BuildLargeDocument();
+            Render(markdown); // warm shared pipeline/JIT to reduce test-runner noise
+            var stopwatch = Stopwatch.StartNew();
+            Render(markdown);
+            stopwatch.Stop();
+
+            Assert.Less(stopwatch.ElapsedMilliseconds, 500);
         }
     }
 }
