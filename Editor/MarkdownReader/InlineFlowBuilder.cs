@@ -10,9 +10,9 @@ namespace Kmd.MarkdownReader
     /// <summary>
     /// Renders a Markdig inline subtree as a wrapping row of inline segments
     /// (<c>flex-direction: row; flex-wrap: wrap</c>). This is what lets inline code be a
-    /// rounded, click-to-copy chip and links be real clickable elements via the public
-    /// <see cref="ClickEvent"/> — no internal link-tag events. Plain runs are split into
-    /// word segments so flex-wrap reproduces natural word wrapping.
+    /// rounded, click-to-copy chip while rich-text links continue through the shared
+    /// link-tag activation path. Plain text is emitted as coarse rich-text runs so a
+    /// paragraph does not allocate one <see cref="Label"/> per word.
     ///
     /// Only used for inline content that actually contains a chip/link (see
     /// <see cref="NeedsFlow"/>); plain prose stays on the single rich-text Label path,
@@ -26,7 +26,68 @@ namespace Kmd.MarkdownReader
             public bool Bold;
             public bool Italic;
             public bool Strike;
-            public string LinkUrl; // non-null => clickable link
+            public string LinkUrl; // non-null => rich-text link
+        }
+
+        private sealed class RunBuilder
+        {
+            private readonly VisualElement _flow;
+            private readonly StringBuilder _text = new StringBuilder();
+
+            public RunBuilder(VisualElement flow)
+            {
+                _flow = flow;
+            }
+
+            public void Append(string text, Style style)
+            {
+                if (string.IsNullOrEmpty(text))
+                {
+                    return;
+                }
+
+                if (style.LinkUrl != null)
+                {
+                    _text.Append("<link=\"");
+                    _text.Append(LinkInlineRenderer.LinkAttribute(style.LinkUrl));
+                    _text.Append("\"><color=");
+                    _text.Append(LinkColorText());
+                    _text.Append(">");
+                }
+
+                if (style.Bold) _text.Append("<b>");
+                if (style.Italic) _text.Append("<i>");
+                if (style.Strike) _text.Append("<s>");
+
+                UIMarkdownRenderer.AppendEscaped(_text, text, 0, text.Length);
+
+                if (style.Strike) _text.Append("</s>");
+                if (style.Italic) _text.Append("</i>");
+                if (style.Bold) _text.Append("</b>");
+
+                if (style.LinkUrl != null)
+                {
+                    _text.Append("</color></link>");
+                }
+            }
+
+            public void Flush()
+            {
+                if (_text.Length == 0)
+                {
+                    return;
+                }
+
+                var label = new Label
+                {
+                    enableRichText = true,
+                    text = _text.ToString(),
+                };
+                label.AddToClassList("md-inline-run");
+                UIMarkdownRenderer.MakeLabelSelectable(label);
+                _flow.Add(label);
+                _text.Clear();
+            }
         }
 
         /// <summary>True if the subtree contains inline code, a link, or an autolink.</summary>
@@ -63,11 +124,18 @@ namespace Kmd.MarkdownReader
                 flow.AddToClassList(className);
             }
 
-            Walk(flow, inlines, default, renderer);
+            var run = new RunBuilder(flow);
+            Walk(flow, inlines, default, renderer, run);
+            run.Flush();
             return flow;
         }
 
-        private static void Walk(VisualElement flow, ContainerInline container, Style style, UIMarkdownRenderer renderer)
+        private static void Walk(
+            VisualElement flow,
+            ContainerInline container,
+            Style style,
+            UIMarkdownRenderer renderer,
+            RunBuilder run)
         {
             if (container == null)
             {
@@ -76,16 +144,21 @@ namespace Kmd.MarkdownReader
 
             for (var child = container.FirstChild; child != null; child = child.NextSibling)
             {
-                Emit(flow, child, style, renderer);
+                Emit(flow, child, style, renderer, run);
             }
         }
 
-        private static void Emit(VisualElement flow, Inline inline, Style style, UIMarkdownRenderer renderer)
+        private static void Emit(
+            VisualElement flow,
+            Inline inline,
+            Style style,
+            UIMarkdownRenderer renderer,
+            RunBuilder run)
         {
             switch (inline)
             {
                 case LiteralInline literal:
-                    EmitWords(flow, literal.Content.ToString(), style, renderer);
+                    run.Append(literal.Content.ToString(), style);
                     break;
 
                 case EmphasisInline emphasis:
@@ -104,28 +177,41 @@ namespace Kmd.MarkdownReader
                         nested.Italic = true;
                     }
 
-                    Walk(flow, emphasis, nested, renderer);
+                    Walk(flow, emphasis, nested, renderer, run);
                     break;
                 }
 
                 case CodeInline code:
+                    run.Flush();
                     EmitChip(flow, code.Content);
                     break;
 
                 case LinkInline image when image.IsImage:
+                    run.Flush();
                     EmitImage(flow, image, renderer);
                     break;
 
                 case LinkInline link:
                 {
                     var url = link.Url ?? string.Empty;
-                    var nested = style;
                     if (UrlPolicy.IsSafe(url))
                     {
-                        nested.LinkUrl = url;
+                        if (renderer.RichTextLinksClickable)
+                        {
+                            var nested = style;
+                            nested.LinkUrl = url;
+                            Walk(flow, link, nested, renderer, run);
+                        }
+                        else
+                        {
+                            run.Flush();
+                            EmitLinkLabel(flow, link, style, url, renderer);
+                        }
+
+                        break;
                     }
 
-                    Walk(flow, link, nested, renderer); // blocked links render as plain text
+                    Walk(flow, link, style, renderer, run); // blocked links render as plain text
                     break;
                 }
 
@@ -133,101 +219,52 @@ namespace Kmd.MarkdownReader
                 {
                     var display = auto.Url ?? string.Empty;
                     var url = auto.IsEmail ? "mailto:" + display : display;
-                    var nested = style;
                     if (UrlPolicy.IsSafe(url))
                     {
-                        nested.LinkUrl = url;
+                        if (renderer.RichTextLinksClickable)
+                        {
+                            var nested = style;
+                            nested.LinkUrl = url;
+                            run.Append(display, nested);
+                        }
+                        else
+                        {
+                            run.Flush();
+                            EmitLinkLabel(flow, display, style, url, renderer);
+                        }
+
+                        break;
                     }
 
-                    EmitWords(flow, display, nested, renderer);
+                    run.Append(display, style);
                     break;
                 }
 
                 case LineBreakInline lineBreak:
                     if (lineBreak.IsHard)
                     {
+                        run.Flush();
                         EmitHardBreak(flow);
                     }
                     else
                     {
-                        EmitWords(flow, " ", style, renderer);
+                        run.Append(" ", style);
                     }
 
                     break;
 
                 case FootnoteLink footnote:
+                    run.Flush();
                     EmitFootnote(flow, footnote, renderer);
                     break;
 
                 case ContainerInline nested:
-                    Walk(flow, nested, style, renderer);
+                    Walk(flow, nested, style, renderer, run);
                     break;
 
                 // Unknown leaf inlines (raw HTML, entities, math, ...) are left out, the
                 // same as the rich-text path which has no renderer registered for them.
             }
-        }
-
-        private static void EmitWords(VisualElement flow, string text, Style style, UIMarkdownRenderer renderer)
-        {
-            if (string.IsNullOrEmpty(text))
-            {
-                return;
-            }
-
-            // Split into atomic segments (a run of non-space chars plus any trailing
-            // whitespace) so flex-wrap can break between them like word wrapping. The
-            // trailing space rides along on each segment so spacing survives wrapping.
-            var i = 0;
-            while (i < text.Length)
-            {
-                var start = i;
-                while (i < text.Length && !char.IsWhiteSpace(text[i]))
-                {
-                    i++;
-                }
-
-                while (i < text.Length && char.IsWhiteSpace(text[i]))
-                {
-                    i++;
-                }
-
-                EmitSegment(flow, text.Substring(start, i - start), style, renderer);
-            }
-        }
-
-        private static void EmitSegment(VisualElement flow, string token, Style style, UIMarkdownRenderer renderer)
-        {
-            var label = new Label { enableRichText = true };
-            label.AddToClassList("md-inline-word");
-
-            var escaped = UIMarkdownRenderer.EscapeRichText(token);
-            if (style.Bold || style.Italic || style.Strike)
-            {
-                var sb = new StringBuilder();
-                if (style.Bold) sb.Append("<b>");
-                if (style.Italic) sb.Append("<i>");
-                if (style.Strike) sb.Append("<s>");
-                sb.Append(escaped);
-                if (style.Strike) sb.Append("</s>");
-                if (style.Italic) sb.Append("</i>");
-                if (style.Bold) sb.Append("</b>");
-                label.text = sb.ToString();
-            }
-            else
-            {
-                label.text = escaped;
-            }
-
-            if (style.LinkUrl != null)
-            {
-                label.AddToClassList("md-inline-link");
-                label.style.color = LinkColor();
-                var url = style.LinkUrl;
-                label.RegisterCallback<ClickEvent>(_ => LinkActivation.Activate(url, renderer));
-            }
-
-            flow.Add(label);
         }
 
         private static void EmitChip(VisualElement flow, string content)
@@ -247,6 +284,112 @@ namespace Kmd.MarkdownReader
             flow.Add(chip);
         }
 
+        private static void EmitLinkLabel(
+            VisualElement flow,
+            ContainerInline container,
+            Style style,
+            string url,
+            UIMarkdownRenderer renderer)
+        {
+            var text = new StringBuilder();
+            AppendInlineText(text, container, style);
+            EmitLinkLabel(flow, text.ToString(), url, renderer);
+        }
+
+        private static void EmitLinkLabel(
+            VisualElement flow,
+            string text,
+            Style style,
+            string url,
+            UIMarkdownRenderer renderer)
+        {
+            var richText = new StringBuilder();
+            AppendFormatted(richText, text, style);
+            EmitLinkLabel(flow, richText.ToString(), url, renderer);
+        }
+
+        private static void EmitLinkLabel(VisualElement flow, string text, string url, UIMarkdownRenderer renderer)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            var label = new Label(text) { enableRichText = true };
+            label.AddToClassList("md-inline-link");
+            label.style.color = LinkColor();
+            label.RegisterCallback<ClickEvent>(_ => LinkActivation.Activate(url, renderer));
+            flow.Add(label);
+        }
+
+        private static void AppendInlineText(StringBuilder text, ContainerInline container, Style style)
+        {
+            if (container == null)
+            {
+                return;
+            }
+
+            for (var child = container.FirstChild; child != null; child = child.NextSibling)
+            {
+                switch (child)
+                {
+                    case LiteralInline literal:
+                        AppendFormatted(text, literal.Content.ToString(), style);
+                        break;
+
+                    case EmphasisInline emphasis:
+                    {
+                        var nested = style;
+                        if (emphasis.DelimiterChar == '~' && emphasis.DelimiterCount == 2)
+                        {
+                            nested.Strike = true;
+                        }
+                        else if (emphasis.DelimiterCount >= 2)
+                        {
+                            nested.Bold = true;
+                        }
+                        else
+                        {
+                            nested.Italic = true;
+                        }
+
+                        AppendInlineText(text, emphasis, nested);
+                        break;
+                    }
+
+                    case CodeInline code:
+                        AppendFormatted(text, code.Content, style);
+                        break;
+
+                    case AutolinkInline auto:
+                        AppendFormatted(text, auto.Url ?? string.Empty, style);
+                        break;
+
+                    case ContainerInline nested:
+                        AppendInlineText(text, nested, style);
+                        break;
+                }
+            }
+        }
+
+        private static void AppendFormatted(StringBuilder text, string value, Style style)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return;
+            }
+
+            if (style.Bold) text.Append("<b>");
+            if (style.Italic) text.Append("<i>");
+            if (style.Strike) text.Append("<s>");
+
+            UIMarkdownRenderer.AppendEscaped(text, value, 0, value.Length);
+
+            if (style.Strike) text.Append("</s>");
+            if (style.Italic) text.Append("</i>");
+            if (style.Bold) text.Append("</b>");
+        }
+
         private static void EmitImage(VisualElement flow, LinkInline link, UIMarkdownRenderer renderer)
         {
             var image = new Image { name = "md-image", scaleMode = ScaleMode.ScaleToFit };
@@ -264,7 +407,6 @@ namespace Kmd.MarkdownReader
 
             var order = footnote.Footnote != null ? footnote.Footnote.Order : footnote.Index;
             var label = new Label("<size=70%>" + order + "</size>") { enableRichText = true };
-            label.AddToClassList("md-inline-word");
             label.AddToClassList("md-inline-link");
             label.style.color = LinkColor();
             var target = "#fn-" + order;
@@ -280,6 +422,8 @@ namespace Kmd.MarkdownReader
         }
 
         private static Color LinkColor() => Hex(EditorGUIUtility.isProSkin ? "#9b6dff" : "#7c4dff");
+
+        private static string LinkColorText() => EditorGUIUtility.isProSkin ? "#9b6dff" : "#7c4dff";
 
         private static Color CodeForeground() => Hex(EditorGUIUtility.isProSkin ? "#9b6dff" : "#7c4dff");
 

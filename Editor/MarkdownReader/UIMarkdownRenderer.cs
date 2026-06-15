@@ -15,6 +15,8 @@ namespace Kmd.MarkdownReader
         public ScrollView RootElement { get; }
         public VisualElement ContentElement { get; }
 
+        internal bool RichTextLinksClickable { get; }
+
         /// <summary>Directory used to resolve relative image/link paths.</summary>
         public string BaseDirectory { get; set; }
 
@@ -27,9 +29,6 @@ namespace Kmd.MarkdownReader
         private readonly StringBuilder _currentText = new StringBuilder();
 
         private readonly Dictionary<string, VisualElement> _headingRegistry = new Dictionary<string, VisualElement>();
-
-        // kmd's --color-selection-bg (tertiary @ 30%); applied to every selectable label.
-        private static readonly Color SelectionColor = new Color(0.608f, 0.427f, 1f, 0.3f);
 
         // Built once: the pipeline is immutable and rebuilding ~12 extensions per renderer is wasteful.
         private static readonly MarkdownPipeline SharedPipeline = CreatePipeline();
@@ -45,10 +44,10 @@ namespace Kmd.MarkdownReader
             ContentElement = new VisualElement { name = "md-body" };
             RootElement.Add(ContentElement);
 
-            // Best-effort link-click handling; no-op if Unity's internal link-tag
+            // Best-effort link-click handling; false if Unity's internal link-tag
             // events aren't reachable (see LinkActivation). RootElement persists across
             // renders, so a single registration catches every link via bubbling.
-            LinkActivation.TryRegister(RootElement, this);
+            RichTextLinksClickable = LinkActivation.TryRegister(RootElement, this);
 
             ObjectRenderers.Add(new HeadingBlockRenderer());
             ObjectRenderers.Add(new ParagraphBlockRenderer());
@@ -105,7 +104,6 @@ namespace Kmd.MarkdownReader
                 };
                 emptyLabel.AddToClassList("md-empty");
                 ContentElement.Add(emptyLabel);
-                MakeContentSelectable();
                 return RootElement;
             }
 
@@ -133,29 +131,28 @@ namespace Kmd.MarkdownReader
                 ContentElement.Add(errorLabel);
             }
 
-            MakeContentSelectable();
             return RootElement;
         }
 
-        // UI Toolkit text selection is per-element (there is no document-wide
-        // selection and no USS property for it), so flag every rendered label as
-        // selectable once the tree is built. This lets users select and copy text in
-        // both the inspector and the viewer window.
-        private void MakeContentSelectable()
+        internal static void MakeLabelSelectable(Label label)
         {
-            ContentElement.Query<Label>().ForEach(label =>
+            if (label == null || !label.enableRichText)
             {
-                // Leave clickable inline elements (code chips, links) non-selectable so
-                // the selection manipulator doesn't swallow their click/copy/open.
-                if (label.ClassListContains("md-code-inline") || label.ClassListContains("md-inline-link"))
-                {
-                    return;
-                }
+                return;
+            }
 
-                var selection = label.selection;
-                selection.isSelectable = true;
-                selection.selectionColor = SelectionColor;
-            });
+            if (label.ClassListContains("md-code-inline")
+                || label.ClassListContains("md-inline-link")
+                || label.ClassListContains("md-codeblock-text")
+                || label.ClassListContains("md-error")
+                || label.ClassListContains("md-empty"))
+            {
+                return;
+            }
+
+            var selection = label.selection;
+            selection.isSelectable = true;
+            selection.selectionColor = new Color(0.608f, 0.427f, 1f, 0.3f);
         }
 
         // USS has no :last-child selector, so a stylesheet can't strip the trailing
@@ -182,7 +179,6 @@ namespace Kmd.MarkdownReader
                 };
                 errorLabel.AddToClassList("md-error");
                 ContentElement.Add(errorLabel);
-                MakeContentSelectable();
                 return RootElement;
             }
 
@@ -233,6 +229,7 @@ namespace Kmd.MarkdownReader
                 name = name,
                 enableRichText = true,
             };
+            MakeLabelSelectable(label);
             AddToCurrentBlock(label);
             _currentLabel = label;
             _currentText.Clear();
@@ -244,6 +241,7 @@ namespace Kmd.MarkdownReader
             if (_currentLabel == null)
             {
                 _currentLabel = new Label { enableRichText = true };
+                MakeLabelSelectable(_currentLabel);
                 AddToCurrentBlock(_currentLabel);
                 _currentText.Clear();
             }

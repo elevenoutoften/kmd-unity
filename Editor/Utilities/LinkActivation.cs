@@ -53,14 +53,14 @@ namespace Kmd.MarkdownReader
 
         /// <summary>
         /// Best-effort: registers a link-tag click handler on <paramref name="root"/>
-        /// so activated links route through <see cref="Activate"/>. No-op (and never
-        /// throws) when the internal link-tag events aren't reachable.
+        /// so activated links route through <see cref="Activate"/>. Returns false
+        /// (and never throws) when the internal link-tag events aren't reachable.
         /// </summary>
-        public static void TryRegister(VisualElement root, UIMarkdownRenderer renderer)
+        public static bool TryRegister(VisualElement root, UIMarkdownRenderer renderer)
         {
             if (root == null)
             {
-                return;
+                return false;
             }
 
             try
@@ -82,7 +82,7 @@ namespace Kmd.MarkdownReader
 
                 if (eventType == null)
                 {
-                    return;
+                    return false;
                 }
 
                 var linkIdProperty = eventType.GetProperty(
@@ -90,7 +90,7 @@ namespace Kmd.MarkdownReader
                     BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
                 if (linkIdProperty == null)
                 {
-                    return;
+                    return false;
                 }
 
                 // void Handle(object evt) binds to EventCallback<TLinkEvent> by relaxed
@@ -125,16 +125,18 @@ namespace Kmd.MarkdownReader
 
                 if (register == null)
                 {
-                    return;
+                    return false;
                 }
 
                 register.MakeGenericMethod(eventType)
                     .Invoke(root, new object[] { callback, TrickleDown.NoTrickleDown });
+                return true;
             }
             catch (Exception)
             {
-                // Internal link-tag events aren't accessible in this Unity build; links
-                // stay styled-but-inert. No regression.
+                // Internal link-tag events aren't accessible in this Unity build.
+                // Callers can fall back to one clickable Label per link.
+                return false;
             }
         }
 
