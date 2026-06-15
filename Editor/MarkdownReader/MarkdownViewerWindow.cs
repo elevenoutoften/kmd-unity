@@ -16,6 +16,18 @@ namespace Kmd.MarkdownReader
         // Set from the watcher's background thread, drained on the main thread.
         private volatile bool _renderQueued;
 
+        // Last successfully rendered file state. A watcher fires several events per
+        // save (and some touches don't change bytes), so this guards against re-reading,
+        // re-parsing, and rebuilding the whole tree for unchanged content — the same
+        // guard MarkdownInspector already has.
+        private string _cachedContent;
+        private long _cachedWriteTicks;
+        private long _cachedLength;
+
+        // Bounded retry budget for transient save-race read failures; reset per burst.
+        private const int MaxIoRetries = 30;
+        private volatile int _ioFailures;
+
         [MenuItem("Window/Kmd/Markdown Viewer")]
         public static void ShowWindow()
         {
@@ -26,21 +38,78 @@ namespace Kmd.MarkdownReader
 
         public void ShowFile(string path)
         {
-            _currentPath = Path.GetFullPath(path);
+            var full = Path.GetFullPath(path);
+            if (full != _currentPath)
+            {
+                _currentPath = full;
+                InvalidateCache();
+            }
+
             titleContent = new GUIContent(Path.GetFileName(_currentPath) + " - Markdown");
-            RenderFile();
+            if (!RenderFile(force: false))
+            {
+                _renderQueued = true; // initial read raced a write — retry via the pump
+            }
+
             SetupWatcher();
         }
 
-        private void RenderFile()
+        private void InvalidateCache()
         {
-            if (string.IsNullOrEmpty(_currentPath) || !File.Exists(_currentPath))
+            _cachedContent = null;
+            _cachedWriteTicks = 0;
+            _cachedLength = 0;
+            _ioFailures = 0;
+        }
+
+        // Returns false ONLY when the read failed transiently (file locked / mid-write),
+        // signalling the caller to retry; true means rendered, unchanged, or nothing to
+        // do. Pass force=true on the watcher path — a watcher event already proves a
+        // write happened, so the cheap stat guard must be bypassed (otherwise a
+        // length-preserving edit on a coarse-timestamp volume, e.g. FAT/SMB, would be
+        // skipped). The content byte-compare below still elides a redundant re-render.
+        private bool RenderFile(bool force)
+        {
+            if (_renderer == null || string.IsNullOrEmpty(_currentPath) || !File.Exists(_currentPath))
             {
-                return;
+                return true;
             }
 
-            _renderer?.RenderFile(_currentPath);
+            var info = new FileInfo(_currentPath);
+            var writeTicks = info.LastWriteTimeUtc.Ticks;
+            var length = info.Length;
+            if (!force && writeTicks == _cachedWriteTicks && length == _cachedLength)
+            {
+                return true;
+            }
+
+            string content;
+            try
+            {
+                content = File.ReadAllText(_currentPath);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                // Mid-write / briefly locked: keep the last render; the caller retries.
+                return false;
+            }
+
+            if (content == _cachedContent)
+            {
+                // Bytes identical (a touch, or a length-preserving stamp bump): refresh
+                // the stamps and skip the expensive re-parse + tree rebuild.
+                _cachedWriteTicks = writeTicks;
+                _cachedLength = length;
+                return true;
+            }
+
+            _cachedContent = content;
+            _cachedWriteTicks = writeTicks;
+            _cachedLength = length;
+            _renderer.BaseDirectory = Path.GetDirectoryName(_currentPath);
+            _renderer.Render(content);
             _shell?.Refresh();
+            return true;
         }
 
         private void SetupWatcher()
@@ -94,7 +163,11 @@ namespace Kmd.MarkdownReader
 
             if (!string.IsNullOrEmpty(_currentPath))
             {
-                RenderFile();
+                if (!RenderFile(force: false))
+                {
+                    _renderQueued = true;
+                }
+
                 SetupWatcher();
             }
             else
@@ -124,11 +197,21 @@ namespace Kmd.MarkdownReader
         }
 
         // ApplyTheme swaps the stylesheet, but the window's panel doesn't always
-        // restyle/repaint on its own — re-render the document so the new theme
-        // applies immediately instead of only after the window is reopened.
+        // restyle/repaint on its own — rebuild the document so the new theme applies
+        // immediately. Re-render from the in-memory content (not a fresh disk read +
+        // re-stat) since only the styling changed; cached image textures are reused.
         private void OnThemeChanged()
         {
-            RenderFile();
+            if (!string.IsNullOrEmpty(_cachedContent))
+            {
+                _renderer.Render(_cachedContent);
+                _shell?.Refresh();
+            }
+            else
+            {
+                RenderFile(force: false);
+            }
+
             Repaint();
         }
 
@@ -152,8 +235,10 @@ namespace Kmd.MarkdownReader
             // FileSystemWatcher raises this on a background thread and emits several
             // events per save. Just flag it; the main-thread pump below coalesces
             // the burst into a single render and avoids touching UIToolkit/editor
-            // state off the main thread.
+            // state off the main thread. Reset the retry budget so a genuine new save
+            // gets a fresh set of read attempts.
             _renderQueued = true;
+            _ioFailures = 0;
         }
 
         private void OnEditorUpdate()
@@ -163,8 +248,16 @@ namespace Kmd.MarkdownReader
                 return;
             }
 
-            _renderQueued = false;
-            RenderFile();
+            // Force the read: a watcher event (or a failed initial render) already
+            // proves work is pending. If the file is briefly locked, RenderFile returns
+            // false — keep retrying on later ticks until it unlocks, bounded so a
+            // permanently-locked file doesn't spin forever (a fresh watcher event resets
+            // the budget for the next genuine change).
+            if (RenderFile(force: true) || ++_ioFailures >= MaxIoRetries)
+            {
+                _renderQueued = false;
+                _ioFailures = 0;
+            }
         }
 
         private void OnDragUpdated(DragUpdatedEvent evt)

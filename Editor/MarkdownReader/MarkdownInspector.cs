@@ -84,7 +84,18 @@ namespace Kmd.MarkdownReader
                 return;
             }
 
-            var content = File.ReadAllText(fullPath);
+            string content;
+            try
+            {
+                content = File.ReadAllText(fullPath);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                // Mid-write / briefly locked during a save: keep the last render; the
+                // 300ms poll picks up the change on a later tick.
+                return;
+            }
+
             if (!force && path == _cachedPath && content == _cachedContent)
             {
                 // Timestamp/size moved but the bytes are identical (a touch, or a
