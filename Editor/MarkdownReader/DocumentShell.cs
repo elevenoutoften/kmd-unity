@@ -10,6 +10,9 @@ namespace Kmd.MarkdownReader
     /// </summary>
     public class DocumentShell : VisualElement
     {
+        private const long BasePollIntervalMs = 250;
+        private const long MaxPollIntervalMs = 2000;
+
         private readonly UIMarkdownRenderer _renderer;
         private readonly VisualElement _sidebar;
         private readonly Button _toggle;
@@ -17,6 +20,10 @@ namespace Kmd.MarkdownReader
             new List<KeyValuePair<OutlineEntry, Button>>();
 
         private bool _outlineVisible = true;
+        private int _lastActiveIndex = -1;
+        private int _unchangedChecks;
+        private long _pollIntervalMs = BasePollIntervalMs;
+        private IVisualElementScheduledItem _activeHeadingPollItem;
 
         public DocumentShell(UIMarkdownRenderer renderer)
         {
@@ -59,7 +66,7 @@ namespace Kmd.MarkdownReader
 
             // Poll the scroll position to highlight the active heading. Uses only
             // the scheduler (no scroller-event dependency); pauses when detached.
-            schedule.Execute(UpdateActiveHeading).Every(250);
+            UpdatePollingState();
         }
 
         /// <summary>Rebuilds the outline from the renderer's last parsed document.</summary>
@@ -90,12 +97,28 @@ namespace Kmd.MarkdownReader
                 ? DisplayStyle.Flex
                 : DisplayStyle.None;
             _toggle.style.display = _items.Count > 0 ? DisplayStyle.Flex : DisplayStyle.None;
+            _lastActiveIndex = -1;
+            _unchangedChecks = 0;
+            _pollIntervalMs = BasePollIntervalMs;
+            UpdatePollingState();
         }
 
         private void SetOutlineVisible(bool visible)
         {
             _outlineVisible = visible;
-            _sidebar.style.display = visible ? DisplayStyle.Flex : DisplayStyle.None;
+            _sidebar.style.display = visible && _items.Count > 0
+                ? DisplayStyle.Flex
+                : DisplayStyle.None;
+
+            if (!visible && _lastActiveIndex >= 0 && _lastActiveIndex < _items.Count)
+            {
+                _items[_lastActiveIndex].Value.EnableInClassList("md-outline-active", false);
+                _lastActiveIndex = -1;
+            }
+
+            _unchangedChecks = 0;
+            _pollIntervalMs = BasePollIntervalMs;
+            UpdatePollingState();
         }
 
         private void UpdateActiveHeading()
@@ -116,10 +139,59 @@ namespace Kmd.MarkdownReader
                 }
             }
 
-            for (var i = 0; i < _items.Count; i++)
+            if (activeIndex == _lastActiveIndex)
             {
-                _items[i].Value.EnableInClassList("md-outline-active", i == activeIndex);
+                _unchangedChecks++;
+                if (_unchangedChecks >= 2)
+                {
+                    SetPollInterval(System.Math.Min(_pollIntervalMs * 2, MaxPollIntervalMs));
+                }
+
+                return;
             }
+
+            if (_lastActiveIndex >= 0 && _lastActiveIndex < _items.Count)
+            {
+                _items[_lastActiveIndex].Value.EnableInClassList("md-outline-active", false);
+            }
+
+            if (activeIndex >= 0 && activeIndex < _items.Count)
+            {
+                _items[activeIndex].Value.EnableInClassList("md-outline-active", true);
+            }
+
+            _lastActiveIndex = activeIndex;
+            _unchangedChecks = 0;
+            SetPollInterval(BasePollIntervalMs);
+        }
+
+        private void UpdatePollingState()
+        {
+            if (!_outlineVisible || _items.Count == 0)
+            {
+                _activeHeadingPollItem?.Pause();
+                return;
+            }
+
+            SetPollInterval(_pollIntervalMs, forceRestart: true);
+        }
+
+        private void SetPollInterval(long intervalMs, bool forceRestart = false)
+        {
+            if (!forceRestart && _pollIntervalMs == intervalMs)
+            {
+                return;
+            }
+
+            _pollIntervalMs = intervalMs;
+            _activeHeadingPollItem?.Pause();
+
+            if (!_outlineVisible || _items.Count == 0)
+            {
+                return;
+            }
+
+            _activeHeadingPollItem = schedule.Execute(UpdateActiveHeading).Every(_pollIntervalMs);
         }
     }
 }
