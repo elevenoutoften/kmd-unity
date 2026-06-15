@@ -46,13 +46,18 @@ namespace Kmd.MarkdownReader.Tests
         }
 
         [Test]
-        public void InlineText_IsHtmlEscaped()
+        public void InlineText_NeutralizesAngleBracketForRichText()
         {
+            // UI Toolkit rich text treats only '<' as markup and decodes NO HTML
+            // entities, so the renderer neutralizes '<' with a trailing zero-width
+            // space (U+200B) and leaves '&' (and every other character) untouched.
             var body = Render("a < b & c");
             var paragraph = body.Q<Label>(className: "md-paragraph");
             Assert.IsNotNull(paragraph);
-            StringAssert.Contains("&lt;", paragraph.text);
-            StringAssert.Contains("&amp;", paragraph.text);
+            StringAssert.Contains("<​", paragraph.text);
+            StringAssert.Contains("&", paragraph.text);
+            StringAssert.DoesNotContain("&lt;", paragraph.text);
+            StringAssert.DoesNotContain("&amp;", paragraph.text);
         }
 
         [Test]
