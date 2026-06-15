@@ -21,8 +21,17 @@ namespace Kmd.MarkdownReader
     /// </summary>
     public static class ImageLoader
     {
+        private const int MaxCacheSize = 64;
+        private const int MaxTexturePixels = 4096 * 4096;
+        private const int TimeoutSeconds = 30;
+
         // Texture per normalized source key, reused across re-renders.
         private static readonly Dictionary<string, Texture> Cache = new Dictionary<string, Texture>();
+
+        // Most-recently-used keys are at the front; least-recently-used keys are
+        // evicted from the back when the cache grows beyond MaxCacheSize.
+        private static readonly LinkedList<string> LruKeys = new LinkedList<string>();
+        private static readonly Dictionary<string, LinkedListNode<string>> LruNodes = new Dictionary<string, LinkedListNode<string>>();
 
         // Textures THIS loader created (downloaded via UnityWebRequest); these are
         // owned native objects and must be destroyed on clear. AssetDatabase textures
@@ -36,8 +45,6 @@ namespace Kmd.MarkdownReader
         // Latest composite cache key per local file uri, so a changed file evicts its
         // previous (now-stale) texture instead of leaking it for the session.
         private static readonly Dictionary<string, string> LocalKeyByUri = new Dictionary<string, string>();
-
-        private const int TimeoutSeconds = 30;
 
         [InitializeOnLoadMethod]
         private static void Init()
@@ -98,6 +105,8 @@ namespace Kmd.MarkdownReader
 
             Owned.Clear();
             Cache.Clear();
+            LruKeys.Clear();
+            LruNodes.Clear();
             Pending.Clear();
             LocalKeyByUri.Clear();
         }
@@ -113,7 +122,7 @@ namespace Kmd.MarkdownReader
             var texture = FindAssetTexture(name);
             if (texture != null)
             {
-                Cache[key] = texture; // borrowed (AssetDatabase-owned) — not added to Owned
+                AddToCache(key, texture); // borrowed (AssetDatabase-owned) — not added to Owned
                 Apply(image, texture);
             }
             else
@@ -193,11 +202,12 @@ namespace Kmd.MarkdownReader
             {
                 if (texture != null)
                 {
+                    Touch(key);
                     Apply(image, texture);
                     return true;
                 }
 
-                Cache.Remove(key); // texture was destroyed out from under us
+                Evict(key); // texture was destroyed out from under us
             }
 
             return false;
@@ -227,8 +237,12 @@ namespace Kmd.MarkdownReader
                     var texture = DownloadHandlerTexture.GetContent(request);
                     if (texture != null)
                     {
-                        Cache[cacheKey] = texture;
-                        Owned.Add(texture);
+                        var pixels = (long)texture.width * texture.height;
+                        if (pixels <= MaxTexturePixels)
+                        {
+                            AddToCache(cacheKey, texture);
+                            Owned.Add(texture);
+                        }
                     }
 
                     ApplyToAttached(targets, texture);
@@ -253,6 +267,35 @@ namespace Kmd.MarkdownReader
                     UnityEngine.Object.DestroyImmediate(texture);
                 }
             }
+
+            if (LruNodes.TryGetValue(key, out var node))
+            {
+                LruKeys.Remove(node);
+                LruNodes.Remove(key);
+            }
+        }
+
+        private static void AddToCache(string key, Texture texture)
+        {
+            Cache[key] = texture;
+            Touch(key);
+
+            while (Cache.Count > MaxCacheSize && LruKeys.Last != null)
+            {
+                Evict(LruKeys.Last.Value);
+            }
+        }
+
+        private static void Touch(string key)
+        {
+            if (LruNodes.TryGetValue(key, out var node))
+            {
+                LruKeys.Remove(node);
+                LruKeys.AddFirst(node);
+                return;
+            }
+
+            LruNodes[key] = LruKeys.AddFirst(key);
         }
 
         private static void ApplyToAttached(List<Image> targets, Texture texture)
