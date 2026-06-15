@@ -28,6 +28,13 @@ namespace Kmd.MarkdownReader
         /// <summary>Theme names in display order, for the theme selector.</summary>
         public static readonly string[] ThemeChoices = { ThemeKmd, ThemeUnity };
 
+        /// <summary>
+        /// Raised after the theme changes. Swapping the stylesheet restyles a custom
+        /// inspector element live, but an EditorWindow's panel doesn't always repaint
+        /// on its own, so hosts subscribe to this to re-render/repaint themselves.
+        /// </summary>
+        public static event Action ThemeChanged;
+
         private static readonly HashSet<VisualElement> Roots = new HashSet<VisualElement>();
         private static StyleSheet _darkSheet;
         private static StyleSheet _lightSheet;
@@ -59,6 +66,8 @@ namespace Kmd.MarkdownReader
             {
                 ApplyTheme(root);
             }
+
+            ThemeChanged?.Invoke();
         }
 
         /// <summary>Path of the active stylesheet, or null if it isn't importable yet.</summary>

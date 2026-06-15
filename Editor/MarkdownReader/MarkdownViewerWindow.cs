@@ -109,16 +109,27 @@ namespace Kmd.MarkdownReader
 
             EditorApplication.update += OnEditorUpdate;
             Selection.selectionChanged += OnSelectionChanged;
+            ThemeManager.ThemeChanged += OnThemeChanged;
         }
 
         private void OnDisable()
         {
+            ThemeManager.ThemeChanged -= OnThemeChanged;
             Selection.selectionChanged -= OnSelectionChanged;
             ThemeManager.Unregister(rootVisualElement);
             EditorApplication.update -= OnEditorUpdate;
             rootVisualElement.UnregisterCallback<DragPerformEvent>(OnDragPerform);
             rootVisualElement.UnregisterCallback<DragUpdatedEvent>(OnDragUpdated);
             TeardownWatcher();
+        }
+
+        // ApplyTheme swaps the stylesheet, but the window's panel doesn't always
+        // restyle/repaint on its own — re-render the document so the new theme
+        // applies immediately instead of only after the window is reopened.
+        private void OnThemeChanged()
+        {
+            RenderFile();
+            Repaint();
         }
 
         private void OnSelectionChanged()

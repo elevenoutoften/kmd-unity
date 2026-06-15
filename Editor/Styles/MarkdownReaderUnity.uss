@@ -1,15 +1,19 @@
 /*
  * kmd Markdown Reader - Unity editor theme.
- * Same layout and typography as the kmd theme, but every surface/border/text
- * colour is driven by Unity's built-in editor variables (--unity-colors-*), so
- * the reader blends into the Editor and follows the active editor skin
- * (dark/light) automatically.
+ * Same layout and typography as the kmd theme. The page background and text use
+ * the editor's own variables (--unity-colors-window-background / -default-text),
+ * so the reader's base blends into the Editor and follows the active skin.
+ *
+ * Surfaces and dividers are a semi-transparent mid-grey rather than the editor's
+ * helpbox/border variables: those are recessed (darker than the window) in the
+ * dark skin, but kmd's look is a subtle *lift* (lighter than the page in dark,
+ * darker in light). A translucent grey gives exactly that — it lightens over a
+ * dark background and darkens over a light one — so code blocks/quotes/tables and
+ * rules read as gentle raised surfaces in both skins.
  *
  * A few colours are emitted as rich text in C# (the inline-code chip, links,
  * footnote refs, task-list glyphs, and the syntax-highlight palette). Those are
- * skin-aware but NOT theme-aware: they keep the kmd accent palette in both
- * themes, so e.g. an inline-code chip sits on the kmd surface colour rather than
- * the editor surface used by fenced code blocks.
+ * skin-aware but NOT theme-aware: they keep the kmd accent palette in both themes.
  */
 
 #md-scroll-view {
@@ -48,14 +52,14 @@
     font-size: 34px;
     padding-bottom: 8px;
     border-bottom-width: 1px;
-    border-bottom-color: var(--unity-colors-default-border);
+    border-bottom-color: rgba(128, 128, 128, 0.45);
 }
 
 .md-h2 {
     font-size: 24px;
     padding-bottom: 4px;
     border-bottom-width: 1px;
-    border-bottom-color: var(--unity-colors-default-border);
+    border-bottom-color: rgba(128, 128, 128, 0.45);
 }
 
 .md-h3 { font-size: 20px; }
@@ -93,7 +97,7 @@
     -unity-font-definition: url("../../Fonts/JetBrainsMono/JetBrainsMono-Regular.ttf");
     font-size: 14px;
     color: var(--unity-colors-default-text);
-    background-color: var(--unity-colors-helpbox-background);
+    background-color: rgba(128, 128, 128, 0.2);
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
     border-bottom-left-radius: 8px;
@@ -115,15 +119,15 @@
     opacity: 0;
     font-size: 11px;
     color: var(--unity-colors-default-text);
-    background-color: var(--unity-colors-button-background);
+    background-color: rgba(128, 128, 128, 0.2);
     border-top-width: 1px;
     border-right-width: 1px;
     border-bottom-width: 1px;
     border-left-width: 1px;
-    border-top-color: var(--unity-colors-default-border);
-    border-right-color: var(--unity-colors-default-border);
-    border-bottom-color: var(--unity-colors-default-border);
-    border-left-color: var(--unity-colors-default-border);
+    border-top-color: rgba(128, 128, 128, 0.45);
+    border-right-color: rgba(128, 128, 128, 0.45);
+    border-bottom-color: rgba(128, 128, 128, 0.45);
+    border-left-color: rgba(128, 128, 128, 0.45);
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
     border-bottom-left-radius: 6px;
@@ -138,9 +142,9 @@
 /* Tables — horizontal rules only (no outer or vertical borders). ---------- */
 .md-table-scroll { margin-top: 6px; margin-bottom: 16px; max-width: 100%; }
 .md-table { flex-direction: column; }
-.md-table-header { flex-direction: row; background-color: var(--unity-colors-inspector_titlebar-background); }
+.md-table-header { flex-direction: row; background-color: rgba(128, 128, 128, 0.28); }
 .md-table-row { flex-direction: row; }
-.md-table-row:hover { background-color: var(--unity-colors-alternated_rows-background); }
+.md-table-row:hover { background-color: rgba(128, 128, 128, 0.1); }
 .md-th,
 .md-td {
     flex-shrink: 0;
@@ -150,7 +154,7 @@
     padding-left: 16px;
     padding-right: 16px;
     border-bottom-width: 1px;
-    border-bottom-color: var(--unity-colors-default-border);
+    border-bottom-color: rgba(128, 128, 128, 0.45);
 }
 .md-th {
     -unity-font-definition: url("../../Fonts/Inter/Inter-SemiBold.ttf");
@@ -165,8 +169,8 @@
 /* Blockquote -------------------------------------------------------------- */
 .md-blockquote {
     border-left-width: 3px;
-    border-left-color: var(--unity-colors-default-border);
-    background-color: var(--unity-colors-helpbox-background);
+    border-left-color: rgba(128, 128, 128, 0.5);
+    background-color: rgba(128, 128, 128, 0.2);
     padding-top: 16px;
     padding-right: 24px;
     padding-bottom: 16px;
@@ -183,7 +187,7 @@
 .md-alert {
     border-left-width: 4px;
     border-left-color: #5b9cf5;
-    background-color: var(--unity-colors-helpbox-background);
+    background-color: rgba(128, 128, 128, 0.2);
     padding-top: 8px;
     padding-right: 16px;
     padding-bottom: 8px;
@@ -213,7 +217,7 @@
 .md-alert-title-caution { color: #e8594e; }
 
 /* Horizontal rule --------------------------------------------------------- */
-.md-hr { height: 1px; background-color: var(--unity-colors-default-border); margin-top: 36px; margin-bottom: 36px; }
+.md-hr { height: 1px; background-color: rgba(128, 128, 128, 0.45); margin-top: 36px; margin-bottom: 36px; }
 
 /* States ------------------------------------------------------------------ */
 .md-empty { opacity: 0.6; -unity-font-style: italic; margin-top: 8px; }
@@ -222,7 +226,7 @@
 
 /* Footnotes --------------------------------------------------------------- */
 .md-footnotes { margin-top: 36px; }
-.md-footnotes-rule { height: 1px; background-color: var(--unity-colors-default-border); margin-bottom: 16px; }
+.md-footnotes-rule { height: 1px; background-color: rgba(128, 128, 128, 0.45); margin-bottom: 16px; }
 .md-footnote { flex-direction: row; margin-bottom: 4px; }
 .md-footnote-num {
     min-width: 28px;
@@ -260,7 +264,7 @@
     margin-bottom: 2px;
     font-size: 11px;
     color: var(--unity-colors-default-text);
-    background-color: var(--unity-colors-button-background);
+    background-color: rgba(128, 128, 128, 0.2);
     border-top-width: 0;
     border-right-width: 0;
     border-bottom-width: 0;
@@ -274,9 +278,9 @@
 .md-outline-sidebar {
     width: 240px;
     flex-shrink: 0;
-    background-color: var(--unity-colors-default-background);
+    background-color: rgba(128, 128, 128, 0.08);
     border-right-width: 1px;
-    border-right-color: var(--unity-colors-default-border);
+    border-right-color: rgba(128, 128, 128, 0.4);
     padding-top: 16px;
     padding-bottom: 16px;
     padding-left: 16px;
