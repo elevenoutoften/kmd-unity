@@ -37,16 +37,17 @@ Pin a specific commit/tag by appending a ref, e.g. `…/kmd-unity.git#v0.1.0`.
 ## Features
 
 - Headings (h1–h6) with the kmd typographic scale
-- Paragraphs, **bold**, *italic*, ~~strikethrough~~, `inline code`
-  (click to copy)
+- Paragraphs, **bold**, *italic*, ~~strikethrough~~, and `inline code`
+  (styled as a tinted chip)
 - Fenced code blocks with syntax highlighting (via ColorCode) and a copy button;
   indented code blocks
-- Ordered, unordered, and task lists (read-only checkboxes), with nesting
+- Ordered, unordered, and task lists (read-only ☑/☐ glyphs), with nesting
 - Blockquotes and GitHub-style alerts (NOTE / TIP / IMPORTANT / WARNING / CAUTION)
 - GFM tables (horizontally scrollable)
 - Footnotes with scroll-to references
-- Links (sanitized URL policy, clickable) and autolinks
-- Images (async load; relative paths, `search:` AssetDatabase lookup, http/https)
+- Links and autolinks (sanitized URL policy; click-to-open is best-effort — see note)
+- Images (cached async load; relative paths and `search:` assets by default; remote
+  http/https and out-of-project paths require the external-images preference opt-in)
 - Horizontal rules, empty/error states
 - Dark and light themes, auto-detected from the Editor skin
 - Outline sidebar with scroll position tracking (viewer window)
@@ -56,7 +57,14 @@ TaskLists, EmphasisExtras, Footnotes, YAML front matter, GenericAttributes,
 Alerts, and Math (the Math extension is enabled in the pipeline; a dedicated math
 renderer is planned).
 
-> Screenshots: to be added.
+> **Links:** UI Toolkit's link-tag click events are `internal` in current Unity, so
+> click-to-open is wired through reflection on a best-effort basis and may be inert
+> on some Unity builds. Links are always rendered with the sanitized URL policy
+> (which strips `javascript:`, `data:`, `file:`, and other unsafe schemes) regardless.
+
+> **External images:** off by default — opening a document never performs a network
+> request or reads files outside the project. Enable remote/out-of-project images in
+> **Preferences ▸ Kmd Markdown**.
 
 ## Dependencies
 

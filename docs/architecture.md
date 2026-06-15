@@ -20,20 +20,22 @@ Rebuild kmd's reader features natively in C# using Markdig + UIToolkit. No WebVi
 
 ```csharp
 var pipeline = new MarkdownPipelineBuilder()
-    .UseAutoIdentifiers()      // heading slugs for anchor links
-    .UseAutoLinks()             // bare URLs become links
+    .UseAutoIdentifiers(AutoIdentifierOptions.GitHub) // heading slugs for anchor links
+    .UseAutoLinks()              // bare URLs become links
     .UsePipeTables()             // GFM pipe tables
     .UseGridTables()             // grid tables
     .UseTaskLists()              // - [ ] / - [x] checkboxes
-    .UseStrikethrough()          // ~~strikethrough~~
-    .UseEmphasisExtras()         // subscript, superscript, inserted, marked
+    .UseEmphasisExtras()         // ~~strike~~, sub/superscript, inserted, marked
     .UseFootnotes()              // footnote syntax
     .UseYamlFrontMatter()        // parse YAML front matter
     .UseGenericAttributes()      // {.class} for custom styling
     .UseAlertBlocks()            // GitHub-style > [!NOTE] alerts
-    .UseMath()                   // $$...$$ and $...$ math (fallback rendering)
+    .UseMathematics()            // $$...$$ and $...$ math (fallback rendering)
     .Build();
 ```
+
+The pipeline is built once into a static, shared `MarkdownPipeline` and reused for
+every render (it is immutable).
 
 ### Rendering: Markdig AST → UIToolkit
 
@@ -47,19 +49,22 @@ Each Markdig AST node type maps to a custom `MarkdownObjectRenderer` that produc
 | `FencedCodeBlock` | `FencedCodeBlockRenderer` | VisualElement `md-codeblock` + Label (syntax-highlighted) + copy button |
 | `CodeBlock` | `CodeBlockRenderer` | Label with `md-code` (indented code, no highlighting) |
 | `QuoteBlock` | `QuoteBlockRenderer` | VisualElement with `md-blockquote` + left border accent |
-| `ThematicBreakBlock` | `ThematicBreakRenderer` | VisualElement with `md-hr` |
+| `ThematicBreakBlock` | `ThematicBreakBlockRenderer` | VisualElement with `md-hr` |
 | `TableBlock` | `TableBlockRenderer` | VisualElement grid inside ScrollView |
 | `AlertBlock` | `AlertBlockRenderer` | Styled callout with icon + title + body |
 | `EmphasisInline` | `EmphasisInlineRenderer` | `<b>` / `<i>` / `<s>` rich text tags |
-| `CodeInline` | `CodeInlineRenderer` | Inline label with `md-code-inline` class |
-| `LinkInline` | `LinkInlineRenderer` | `<link="url">` tags with click callbacks |
-| `LiteralInline` | `LiteralInlineRenderer` | Plain text |
-| `FootnoteLink` | `FootnoteLinkRenderer` | Superscript link |
-| `MathInline` / `MathBlock` | `MathRenderer` | Styled placeholder (v1) |
+| `CodeInline` | `CodeInlineRenderer` | Inline `<mark>`/`<color>` chip in the paragraph label |
+| `LinkInline` | `LinkInlineRenderer` | `<link="url">` rich text (best-effort click routing) |
+| `AutolinkInline` | `AutolinkInlineRenderer` | `<link="url">` rich text for bare URLs/emails |
+| `LiteralInline` | `LiteralInlineRenderer` | Plain text (`<`-neutralized for rich text) |
+| `TaskList` | `TaskListInlineRenderer` | Inline ☑/☐ glyph |
+| `FootnoteLink` | `FootnoteLinkRenderer` | Superscript `<link="#fn-N">` |
+| `FootnoteGroup` | `FootnoteGroupRenderer` | Footnote section appended at document end |
+| `MathInline` | `MathInlineRenderer` | Styled placeholder/fallback (v1) |
 
 ## Syntax Highlighting
 
-ColorCode.Core (MIT, .NET Standard 1.4) tokenizes source code into colored spans. A custom `RichTextFormatter` converts tokens to UIToolkit `<color=#hex>` rich text tags:
+ColorCode.Core (MIT, .NET Standard 1.4) tokenizes source code into colored spans. A custom `ColorCodeRichTextFormatter` converts tokens to UIToolkit `<color=#hex>` rich text tags:
 
 ```
 <color=#569CD6>using<color=#FFFFFF> <color=#4EC9B0>UnityEngine<color=#FFFFFF>;
@@ -74,22 +79,22 @@ Each code block renders as a single `Label` with `enableRichText = true` and a m
 | Headings (h1–h6) | ✅ v1 | With anchor IDs and scroll-to |
 | Paragraphs | ✅ v1 | |
 | Bold / Italic / Strikethrough | ✅ v1 | `<b>`, `<i>`, `<s>` rich text tags |
-| Links (fragment, internal, external) | ✅ v1 | `<link>` tags, URL policy for security |
-| Inline code | ✅ v1 | Click-to-copy via `GUIUtility.systemCopyBuffer` |
+| Links (fragment, internal, external) | ✅ v1 | `<link>` tags + sanitized URL policy; click-to-open is best-effort (see Security) |
+| Inline code | ✅ v1 | Tinted inline `<mark>` chip (not click-to-copy) |
 | Fenced code blocks | ✅ v1 | Syntax highlighting + copy button |
 | Indented code blocks | ✅ v1 | Plain monospace |
 | GFM tables | ✅ v1 | Grid layout in ScrollView |
-| Task lists | ✅ v1 | Read-only `Toggle` checkboxes |
+| Task lists | ✅ v1 | Read-only ☑/☐ glyphs |
 | Blockquotes | ✅ v1 | Left border accent |
 | Ordered / unordered lists | ✅ v1 | Nested via `<margin-left>` |
 | Thematic breaks | ✅ v1 | Horizontal rule |
 | GitHub Alerts | ✅ v1 | NOTE/TIP/IMPORTANT/WARNING/CAUTION callouts |
 | Footnotes | ✅ v1 | Superscript links + footnote section |
-| Autolinks | ✅ v1 | Bare URLs become clickable |
-| Emphasis extras | ✅ v1 | `~~strike~~`, `^sup^`, `~sub~`, `++insert++`, `==mark==` |
+| Autolinks | ✅ v1 | Bare URLs styled as links (best-effort click-to-open) |
+| Emphasis extras | ⚠️ partial | `~~strike~~` → strikethrough; parsed but rendered generically: `^sup^`/`~sub~` → italic, `++insert++`/`==mark==` → bold |
 | Outline sidebar | ✅ v1 | Heading tree + scroll spy |
-| Dark / light theme | ✅ v1 | Two USS files, auto-detect editor skin |
-| Image loading | ✅ v1 | `UnityWebRequestTexture`, relative path resolution |
+| Dark / light theme | ✅ v1 | kmd (dark/light sheets) + Unity (skin-driven) themes |
+| Image loading | ✅ v1 | Cached `UnityWebRequestTexture`; image policy (remote/out-of-project behind opt-in) |
 | YAML front matter | ✅ v1 | Parsed, not rendered (available for custom styling) |
 | Mermaid diagrams | ⏳ v2 | Placeholder in v1. Native rendering not feasible |
 | KaTeX math | ⏳ v2 | Placeholder in v1. No C# KaTeX equivalent |
@@ -124,8 +129,9 @@ love.axis.kmd-unity/
 │   ├── MarkdownReader/
 │   │   ├── UIMarkdownRenderer.cs          # Main entry: pipeline → VisualElement tree
 │   │   ├── MarkdownInspector.cs           # CustomEditor for .md assets
-│   │   ├── MarkdownViewer.cs              # EditorWindow for standalone viewing
-│   │   └── DocumentShell.cs               # Outline sidebar + scroll container
+│   │   ├── MarkdownViewerWindow.cs        # EditorWindow for standalone viewing
+│   │   ├── DocumentShell.cs               # Outline sidebar + scroll container
+│   │   └── OutlineExtractor.cs            # Heading tree extraction for the outline
 │   ├── ObjectRenderers/
 │   │   ├── HeadingBlockRenderer.cs
 │   │   ├── ParagraphBlockRenderer.cs
@@ -135,24 +141,32 @@ love.axis.kmd-unity/
 │   │   ├── TableBlockRenderer.cs
 │   │   ├── QuoteBlockRenderer.cs
 │   │   ├── AlertBlockRenderer.cs
-│   │   ├── ThematicBreakRenderer.cs
+│   │   ├── ThematicBreakBlockRenderer.cs
 │   │   ├── EmphasisInlineRenderer.cs
 │   │   ├── CodeInlineRenderer.cs
 │   │   ├── LinkInlineRenderer.cs
+│   │   ├── AutolinkInlineRenderer.cs
 │   │   ├── LiteralInlineRenderer.cs
 │   │   ├── LineBreakInlineRenderer.cs
-│   │   ├── FootnoteRenderer.cs
-│   │   └── MathRenderer.cs               # Placeholder for v1
+│   │   ├── TaskListInlineRenderer.cs
+│   │   ├── MathInlineRenderer.cs          # Styled placeholder/fallback for v1
+│   │   ├── FootnoteLinkRenderer.cs
+│   │   └── FootnoteGroupRenderer.cs
 │   ├── SyntaxHighlighting/
 │   │   ├── ColorCodeRichTextFormatter.cs  # ColorCode → <color> tags
 │   │   └── LanguageMap.cs                 # Markdown lang ID → ColorCode language
 │   ├── Utilities/
-│   │   ├── UrlPolicy.cs                  # URL validation (port from kmd sanitize.ts)
-│   │   ├── ImageLoader.cs                # Async image loading via UnityWebRequest
-│   │   └── ThemeManager.cs               # Dark/light USS switching
+│   │   ├── UrlPolicy.cs                   # Link URL validation (port from kmd sanitize.ts)
+│   │   ├── ImagePolicy.cs                 # Image-source policy (remote/external opt-in)
+│   │   ├── ImageLoader.cs                 # Cached async image loading via UnityWebRequest
+│   │   ├── LinkActivation.cs              # Link-target routing + best-effort click wiring
+│   │   ├── CodeBlockCopyButton.cs         # Copy button for fenced code blocks
+│   │   ├── ThemeManager.cs                # Theme/USS switching (kmd + Unity)
+│   │   └── MarkdownReaderSettingsProvider.cs # Preferences ▸ Kmd Markdown
 │   └── Styles/
 │       ├── MarkdownReaderLight.uss
-│       └── MarkdownReaderDark.uss
+│       ├── MarkdownReaderDark.uss
+│       └── MarkdownReaderUnity.uss
 ├── Plugins/
 │   ├── Markdig.dll                        # .NET Standard 2.0
 │   └── ColorCode.Core.dll                 # .NET Standard 1.4
@@ -178,13 +192,18 @@ love.axis.kmd-unity/
 | `text-shadow` | ⚠️ Limited (~5px) | Avoid for body text |
 | Ligatures | ❌ Not supported | Accept (mono fonts rarely need them) |
 | `<color=#hex>` in Labels | ✅ Full support | Primary mechanism for syntax highlighting |
-| `<link="url">` in Labels | ✅ Unity 2022.2+ | Minimum target version |
+| `<link="url">` rendering | ✅ Unity 2022.2+ | Renders/styles link runs |
+| `<link>` click events | ⚠️ `internal` API | `Pointer*LinkTagEvent` is internal in 6000.3.x → click handled best-effort via reflection (`LinkActivation`) |
 | `letter-spacing` | ✅ Full support | |
 | Custom fonts (.ttf/.otf) | ✅ Bundle in package | Reference via USS `resource()` |
 
 ## Minimum Unity Version
 
-**2022.3 LTS** — Required for native `<link>` tag support in UIToolkit Labels (`PointerClickLinkTagEvent`).
+**2022.3 LTS** — Required for `<link>` tag *rendering* in UIToolkit Labels. Note the
+matching click events (`PointerUpLinkTagEvent` / `PointerClickLinkTagEvent`) are
+`internal` in current Unity (6000.3.x), so `LinkActivation` wires click handling
+through reflection on a best-effort basis and silently degrades to "styled but inert"
+when those events aren't reachable.
 
 ## Dependencies
 
@@ -197,19 +216,18 @@ All dependencies are permissively licensed and can be bundled in the package.
 
 ## Click-to-Copy
 
-```csharp
-// Code block copy button
-var copyButton = new Button { text = "📋" };
-copyButton.clicked += () => {
-    GUIUtility.systemCopyBuffer = codeText;
-    copyButton.text = "✓";
-    schedule.Execute(() => copyButton.text = "📋").ExecuteLater(1500);
-};
+Only **fenced code blocks** have a copy button (`CodeBlockCopyButton`). Inline code is
+rendered as a styled `<mark>` chip inside the surrounding paragraph label, not a
+separate clickable element, so it is **not** click-to-copy.
 
-// Inline code click-to-copy
-codeLabel.RegisterCallback<ClickEvent>(evt => {
-    GUIUtility.systemCopyBuffer = codeLabel.text;
-});
+```csharp
+// Code block copy button (CodeBlockCopyButton.Create)
+var button = new Button { text = "Copy" };
+button.clicked += () => {
+    GUIUtility.systemCopyBuffer = codeText;
+    button.text = "✓ Copied";
+    button.schedule.Execute(() => button.text = "Copy").StartingIn(1200);
+};
 ```
 
 ## Inspector Integration
@@ -219,27 +237,48 @@ codeLabel.RegisterCallback<ClickEvent>(evt => {
 public class MarkdownInspector : Editor {
     private UIMarkdownRenderer _renderer;
 
-    void OnEnable() {
-        var path = AssetDatabase.GetAssetPath(target);
-        if (path.EndsWith(".md")) {
-            _renderer = new UIMarkdownRenderer();
-            _renderer.LoadFile(path);
-        }
-    }
-
     public override VisualElement CreateInspectorGUI() {
-        return _renderer?.RootElement ?? base.CreateInspectorGUI();
+        if (!IsMarkdownAsset(out _)) return CreateTextPreview(); // .txt/.json/... fallback
+
+        var root = new VisualElement();
+        _renderer = new UIMarkdownRenderer();
+        root.Add(_renderer.RootElement);
+        ThemeManager.Register(root);
+
+        TryRender(force: true);
+        // Poll every 300ms, but only re-read + re-render when the file's
+        // write-time/size (then content) actually changed.
+        root.schedule.Execute(() => TryRender(force: false)).Every(300);
+        return root;
     }
 }
 ```
 
-Also supports `Selection.selectionChanged` for auto-loading `.md` files in a standalone `MarkdownViewer` EditorWindow.
+The standalone `MarkdownViewerWindow` EditorWindow auto-loads `.md` files via
+`Selection.selectionChanged`, accepts a dropped `.md` file, and live-refreshes through
+a `FileSystemWatcher` (coalesced and change-detected, with the same content guard).
 
 ## Security
 
-Port kmd's URL policy from `sanitize.ts`:
+Link URL policy (`UrlPolicy`, ported from kmd's `sanitize.ts`):
 
-- Block `javascript:`, `vbscript:`, unsafe `data:`, arbitrary `file:`, unknown custom schemes
-- External links open via `Application.OpenURL()` (OS browser), never inside the reader
-- Relative image paths resolved via `UnityWebRequest` against the document's directory
-- No `<script>`, no event handlers, no raw HTML rendering (Markdig outputs structured AST, not HTML)
+- Block `javascript:`, `vbscript:`, `data:`, `file:`, and unknown custom schemes;
+  allow `http`/`https`/`mailto`, in-document fragments, and relative paths.
+- When click handling is available (best-effort, see Minimum Unity Version),
+  `LinkActivation` routes targets: fragments scroll, external URLs open via
+  `Application.OpenURL()` (OS browser, never inside the reader), relative paths
+  open/select the target. Blocked schemes are rendered as plain text and never linked.
+
+Image policy (`ImagePolicy`) — images are side-effectful on render, so they get an
+equivalent gate:
+
+- `search:` AssetDatabase lookups and local paths under the project / document
+  directory load by default.
+- Remote `http(s)` images and absolute paths outside the project are **blocked unless**
+  the user opts in via **Preferences ▸ Kmd Markdown**. So opening a document never
+  performs an unsolicited network request or out-of-project file read.
+- Downloaded textures are cached by URI for the session and destroyed on domain reload;
+  the loader owns/frees only textures it created (AssetDatabase textures are borrowed).
+
+No `<script>`, no event handlers, no raw HTML rendering (Markdig outputs a structured
+AST, not HTML).
