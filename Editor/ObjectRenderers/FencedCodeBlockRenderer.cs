@@ -32,7 +32,7 @@ namespace Kmd.MarkdownReader
             {
                 // Syntax-highlighted: rich text with <color> runs from ColorCode.
                 label.enableRichText = true;
-                label.text = new ColorCodeRichTextFormatter().GetRichText(codeText, language);
+                label.text = ColorCodeRichTextFormatter.ForCurrentSkin().GetRichText(codeText, language);
             }
             else
             {

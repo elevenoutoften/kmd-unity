@@ -45,6 +45,11 @@ namespace Kmd.MarkdownReader
             ContentElement = new VisualElement { name = "md-body" };
             RootElement.Add(ContentElement);
 
+            // Best-effort link-click handling; no-op if Unity's internal link-tag
+            // events aren't reachable (see LinkActivation). RootElement persists across
+            // renders, so a single registration catches every link via bubbling.
+            LinkActivation.TryRegister(RootElement, this);
+
             ObjectRenderers.Add(new HeadingBlockRenderer());
             ObjectRenderers.Add(new ParagraphBlockRenderer());
             ObjectRenderers.Add(new LiteralInlineRenderer());
@@ -115,9 +120,12 @@ namespace Kmd.MarkdownReader
             }
             catch (Exception ex)
             {
+                // Log the full exception (with stack trace) to the console for
+                // developers, but keep the trace out of the rendered document UI.
+                Debug.LogException(ex);
                 ContentElement.Clear();
                 _blockStack.Clear();
-                var errorLabel = new Label("Error rendering markdown:\n" + ex.Message + "\n\n" + ex.StackTrace)
+                var errorLabel = new Label("Error rendering markdown: " + ex.Message)
                 {
                     name = "md-error",
                 };
@@ -172,7 +180,20 @@ namespace Kmd.MarkdownReader
             }
 
             BaseDirectory = Path.GetDirectoryName(Path.GetFullPath(path));
-            var markdown = File.ReadAllText(path);
+
+            string markdown;
+            try
+            {
+                markdown = File.ReadAllText(path);
+            }
+            catch (Exception ex) when (ex is IOException || ex is UnauthorizedAccessException)
+            {
+                // A save race (file mid-write or briefly locked) must not throw out of
+                // an editor callback; keep whatever was last rendered.
+                Debug.LogException(ex);
+                return RootElement;
+            }
+
             return Render(markdown);
         }
 
@@ -276,12 +297,36 @@ namespace Kmd.MarkdownReader
         // still shows as '<'); every other character (incl. & > ' ") is left as-is.
         public static string EscapeRichText(string text)
         {
-            if (string.IsNullOrEmpty(text))
+            // The overwhelmingly common run has no '<' at all — skip the allocating
+            // Replace entirely in that case.
+            if (string.IsNullOrEmpty(text) || text.IndexOf('<') < 0)
             {
                 return text;
             }
 
             return text.Replace("<", "<​");
+        }
+
+        // Append a slice of text to a buffer with the same '<' neutralization as
+        // EscapeRichText, without allocating an intermediate Substring + Replace per
+        // run (hot for large syntax-highlighted code blocks).
+        public static void AppendEscaped(StringBuilder builder, string text, int start, int length)
+        {
+            if (builder == null || string.IsNullOrEmpty(text) || length <= 0)
+            {
+                return;
+            }
+
+            var end = start + length;
+            for (var i = start; i < end; i++)
+            {
+                var c = text[i];
+                builder.Append(c);
+                if (c == '<')
+                {
+                    builder.Append('​');
+                }
+            }
         }
 
         public override object Render(Markdig.Syntax.MarkdownObject markdownObject)

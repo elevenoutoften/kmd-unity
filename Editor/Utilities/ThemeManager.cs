@@ -107,6 +107,18 @@ namespace Kmd.MarkdownReader
             {
                 Roots.Remove(root);
             }
+
+            // Stop polling once the last root is gone — otherwise the per-frame update
+            // hook lingers for the rest of the editor session after every Markdown UI
+            // closes. (Hosts always Unregister in OnDisable, so the set empties; a
+            // later Register re-hooks via the !_hooked guard.) Avoid pruning by
+            // panel==null here: a root can be registered before it attaches to a panel.
+            if (Roots.Count == 0 && _hooked)
+            {
+                EditorApplication.update -= OnEditorUpdate;
+                _hooked = false;
+                _needsApply = false;
+            }
         }
 
         /// <summary>Swaps in the stylesheet matching the current theme + skin (idempotent).</summary>

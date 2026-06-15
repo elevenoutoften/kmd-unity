@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEngine;
@@ -9,12 +10,43 @@ namespace Kmd.MarkdownReader
 {
     /// <summary>
     /// Loads Markdown image references into a UIToolkit Image element. Supports
-    /// http/https (UnityWebRequestTexture), relative/absolute on-disk paths
-    /// (resolved against the document directory, loaded via file://), and a
-    /// "search:" prefix that looks an asset up by name in the AssetDatabase.
+    /// http/https (UnityWebRequestTexture, gated by <see cref="ImagePolicy"/>),
+    /// relative/absolute on-disk paths (resolved against the document directory,
+    /// loaded via file://), and a "search:" prefix that looks an asset up by name in
+    /// the AssetDatabase.
+    ///
+    /// Downloaded textures are cached by normalized URI for the editor session, so the
+    /// frequent full re-renders (live file refresh, theme change) reuse a single
+    /// native texture per image instead of refetching and leaking a new one each time.
     /// </summary>
     public static class ImageLoader
     {
+        // Texture per normalized source key, reused across re-renders.
+        private static readonly Dictionary<string, Texture> Cache = new Dictionary<string, Texture>();
+
+        // Textures THIS loader created (downloaded via UnityWebRequest); these are
+        // owned native objects and must be destroyed on clear. AssetDatabase textures
+        // (the "search:" path) are borrowed and must NEVER be destroyed.
+        private static readonly HashSet<Texture> Owned = new HashSet<Texture>();
+
+        // In-flight requests keyed by source key; the same image referenced twice (or
+        // re-requested by a newer render before the first finishes) fetches only once.
+        private static readonly Dictionary<string, List<Image>> Pending = new Dictionary<string, List<Image>>();
+
+        // Latest composite cache key per local file uri, so a changed file evicts its
+        // previous (now-stale) texture instead of leaking it for the session.
+        private static readonly Dictionary<string, string> LocalKeyByUri = new Dictionary<string, string>();
+
+        private const int TimeoutSeconds = 30;
+
+        [InitializeOnLoadMethod]
+        private static void Init()
+        {
+            // Free owned native textures before the static state is wiped, so they do
+            // not linger as leaked native objects across a domain reload.
+            AssemblyReloadEvents.beforeAssemblyReload += ClearCache;
+        }
+
         public static void Load(Image image, string url, string baseDirectory)
         {
             if (image == null)
@@ -22,89 +54,257 @@ namespace Kmd.MarkdownReader
                 return;
             }
 
-            if (string.IsNullOrWhiteSpace(url))
+            switch (ImagePolicy.Classify(url))
             {
-                SetError(image, "missing image url");
+                case ImageSourceKind.Asset:
+                    LoadAsset(image, url.Trim().Substring("search:".Length));
+                    return;
+
+                case ImageSourceKind.Remote:
+                    if (!ImagePolicy.AllowExternalImages)
+                    {
+                        SetError(image, "remote image blocked — enable in Preferences ▸ Kmd Markdown");
+                        return;
+                    }
+
+                    var remote = url.Trim();
+                    if (!TryApplyCached(image, remote))
+                    {
+                        Fetch(image, remote, remote);
+                    }
+
+                    return;
+
+                case ImageSourceKind.Local:
+                    LoadLocal(image, url.Trim(), baseDirectory);
+                    return;
+
+                default:
+                    SetError(image, "blocked or invalid image url");
+                    return;
+            }
+        }
+
+        /// <summary>Destroys owned textures and empties the session cache.</summary>
+        public static void ClearCache()
+        {
+            foreach (var texture in Owned)
+            {
+                if (texture != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(texture);
+                }
+            }
+
+            Owned.Clear();
+            Cache.Clear();
+            Pending.Clear();
+            LocalKeyByUri.Clear();
+        }
+
+        private static void LoadAsset(Image image, string name)
+        {
+            var key = "search:" + name;
+            if (TryApplyCached(image, key))
+            {
                 return;
             }
 
-            url = url.Trim();
-
-            if (url.StartsWith("search:", StringComparison.OrdinalIgnoreCase))
+            var texture = FindAssetTexture(name);
+            if (texture != null)
             {
-                var name = url.Substring("search:".Length);
-                var tex = FindAssetTexture(name);
-                if (tex != null)
-                {
-                    Apply(image, tex);
-                }
-                else
-                {
-                    SetError(image, "asset not found: " + name);
-                }
-
-                return;
-            }
-
-            string uri;
-            if (url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-                || url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-            {
-                uri = url;
+                Cache[key] = texture; // borrowed (AssetDatabase-owned) — not added to Owned
+                Apply(image, texture);
             }
             else
             {
-                var path = url;
-                if (!Path.IsPathRooted(path) && !string.IsNullOrEmpty(baseDirectory))
-                {
-                    path = Path.Combine(baseDirectory, url);
-                }
+                SetError(image, "asset not found: " + name);
+            }
+        }
 
-                try
-                {
-                    path = Path.GetFullPath(path);
-                }
-                catch (Exception)
-                {
-                    SetError(image, "bad path: " + url);
-                    return;
-                }
-
-                if (!File.Exists(path))
-                {
-                    SetError(image, "not found: " + url);
-                    return;
-                }
-
-                uri = new Uri(path).AbsoluteUri; // file:///...
+        private static void LoadLocal(Image image, string url, string baseDirectory)
+        {
+            var path = url;
+            if (!Path.IsPathRooted(path) && !string.IsNullOrEmpty(baseDirectory))
+            {
+                path = Path.Combine(baseDirectory, url);
             }
 
-            var request = UnityWebRequestTexture.GetTexture(uri);
-            var operation = request.SendWebRequest();
-            operation.completed += _ =>
+            try
             {
+                path = Path.GetFullPath(path);
+            }
+            catch (Exception)
+            {
+                SetError(image, "bad path: " + url);
+                return;
+            }
+
+            if (!ImagePolicy.IsAllowedLocalPath(path, baseDirectory))
+            {
+                SetError(image, "image outside project blocked — enable in Preferences ▸ Kmd Markdown");
+                return;
+            }
+
+            if (!File.Exists(path))
+            {
+                SetError(image, "not found: " + url);
+                return;
+            }
+
+            var uri = new Uri(path).AbsoluteUri; // file:///...
+
+            // Fold the file's write-time + size into the cache key so editing the image
+            // (same path, new bytes) misses the cache and re-fetches, instead of showing
+            // the stale texture for the rest of the session. An unchanged file keeps the
+            // same key, so re-renders still reuse the texture.
+            long stamp = 0, length = 0;
+            try
+            {
+                var info = new FileInfo(path);
+                stamp = info.LastWriteTimeUtc.Ticks;
+                length = info.Length;
+            }
+            catch (Exception)
+            {
+                // Couldn't stat — fall back to the bare uri key.
+            }
+
+            var cacheKey = uri + "#" + stamp + "-" + length;
+            if (TryApplyCached(image, cacheKey))
+            {
+                return;
+            }
+
+            // The file changed since we last cached it: drop the superseded texture so
+            // owned textures don't accumulate until the next domain reload.
+            if (LocalKeyByUri.TryGetValue(uri, out var previousKey) && previousKey != cacheKey)
+            {
+                Evict(previousKey);
+            }
+
+            LocalKeyByUri[uri] = cacheKey;
+            Fetch(image, uri, cacheKey);
+        }
+
+        private static bool TryApplyCached(Image image, string key)
+        {
+            if (Cache.TryGetValue(key, out var texture))
+            {
+                if (texture != null)
+                {
+                    Apply(image, texture);
+                    return true;
+                }
+
+                Cache.Remove(key); // texture was destroyed out from under us
+            }
+
+            return false;
+        }
+
+        private static void Fetch(Image image, string requestUri, string cacheKey)
+        {
+            if (Pending.TryGetValue(cacheKey, out var waiters))
+            {
+                waiters.Add(image); // coalesce onto the in-flight request
+                SetLoading(image);
+                return;
+            }
+
+            Pending[cacheKey] = new List<Image> { image };
+            SetLoading(image);
+
+            var request = UnityWebRequestTexture.GetTexture(requestUri);
+            request.timeout = TimeoutSeconds;
+            request.SendWebRequest().completed += _ =>
+            {
+                var targets = Pending.TryGetValue(cacheKey, out var list) ? list : null;
+                Pending.Remove(cacheKey);
+
                 if (request.result == UnityWebRequest.Result.Success)
                 {
-                    Apply(image, DownloadHandlerTexture.GetContent(request));
+                    var texture = DownloadHandlerTexture.GetContent(request);
+                    if (texture != null)
+                    {
+                        Cache[cacheKey] = texture;
+                        Owned.Add(texture);
+                    }
+
+                    ApplyToAttached(targets, texture);
                 }
                 else
                 {
-                    SetError(image, request.error);
+                    SetErrorOnAttached(targets, request.error);
                 }
 
                 request.Dispose();
             };
         }
 
+        // Drop a single cache entry, destroying its texture if we own it.
+        private static void Evict(string key)
+        {
+            if (Cache.TryGetValue(key, out var texture))
+            {
+                Cache.Remove(key);
+                if (texture != null && Owned.Remove(texture))
+                {
+                    UnityEngine.Object.DestroyImmediate(texture);
+                }
+            }
+        }
+
+        private static void ApplyToAttached(List<Image> targets, Texture texture)
+        {
+            if (targets == null || texture == null)
+            {
+                return;
+            }
+
+            foreach (var image in targets)
+            {
+                // Skip elements dropped by a newer render — applying to a detached
+                // element is wasted work and keeps a dead element referenced.
+                if (image != null && image.panel != null)
+                {
+                    Apply(image, texture);
+                }
+            }
+        }
+
+        private static void SetErrorOnAttached(List<Image> targets, string message)
+        {
+            if (targets == null)
+            {
+                return;
+            }
+
+            foreach (var image in targets)
+            {
+                if (image != null && image.panel != null)
+                {
+                    SetError(image, message);
+                }
+            }
+        }
+
         private static void Apply(Image image, Texture texture)
         {
             image.image = texture;
+            image.RemoveFromClassList("md-image-loading");
             image.RemoveFromClassList("md-image-error");
             image.tooltip = string.Empty;
         }
 
+        private static void SetLoading(Image image)
+        {
+            image.AddToClassList("md-image-loading");
+        }
+
         private static void SetError(Image image, string message)
         {
+            image.RemoveFromClassList("md-image-loading");
             image.AddToClassList("md-image-error");
             image.tooltip = "Image failed to load: " + message;
         }
@@ -114,10 +314,10 @@ namespace Kmd.MarkdownReader
             foreach (var guid in AssetDatabase.FindAssets(name + " t:Texture2D"))
             {
                 var path = AssetDatabase.GUIDToAssetPath(guid);
-                var tex = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
-                if (tex != null)
+                var texture = AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+                if (texture != null)
                 {
-                    return tex;
+                    return texture;
                 }
             }
 

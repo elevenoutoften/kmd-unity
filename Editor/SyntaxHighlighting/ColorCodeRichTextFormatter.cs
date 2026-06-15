@@ -39,6 +39,28 @@ namespace Kmd.MarkdownReader
 
         private readonly StringBuilder _buffer = new StringBuilder();
 
+        // scopeName -> ready-to-emit "#RRGGBB" (or null). The ~7 GitHub colours are
+        // fixed for the lifetime of a (skin-specific) formatter, so resolve each scope
+        // once instead of re-doing the dictionary probe + Substring/concat per token.
+        private readonly Dictionary<string, string> _colorCache = new Dictionary<string, string>();
+
+        // One reusable formatter per skin: the heavy state (parser, style dictionaries)
+        // is already static and GetRichText clears _buffer up front, so a single
+        // instance can format every code block in a render pass without per-block
+        // allocations.
+        private static ColorCodeRichTextFormatter _darkInstance;
+        private static ColorCodeRichTextFormatter _lightInstance;
+
+        public static ColorCodeRichTextFormatter ForCurrentSkin()
+        {
+            if (EditorGUIUtility.isProSkin)
+            {
+                return _darkInstance ?? (_darkInstance = new ColorCodeRichTextFormatter(true));
+            }
+
+            return _lightInstance ?? (_lightInstance = new ColorCodeRichTextFormatter(false));
+        }
+
         public ColorCodeRichTextFormatter()
             : this(EditorGUIUtility.isProSkin)
         {
@@ -143,7 +165,7 @@ namespace Kmd.MarkdownReader
 
             if (language == null)
             {
-                _buffer.Append(Escape(sourceCode));
+                UIMarkdownRenderer.AppendEscaped(_buffer, sourceCode, 0, sourceCode.Length);
                 return _buffer.ToString();
             }
 
@@ -169,7 +191,7 @@ namespace Kmd.MarkdownReader
             {
                 if (scope.Index > offset)
                 {
-                    _buffer.Append(Escape(source.Substring(offset, scope.Index - offset)));
+                    UIMarkdownRenderer.AppendEscaped(_buffer, source, offset, scope.Index - offset);
                 }
 
                 var color = GetForeground(scope.Name);
@@ -190,18 +212,25 @@ namespace Kmd.MarkdownReader
 
             if (end > offset)
             {
-                _buffer.Append(Escape(source.Substring(offset, end - offset)));
+                UIMarkdownRenderer.AppendEscaped(_buffer, source, offset, end - offset);
             }
         }
 
         private string GetForeground(string scopeName)
         {
-            if (Styles != null && Styles.Contains(scopeName))
+            if (_colorCache.TryGetValue(scopeName, out var cached))
             {
-                return ToRichTextColor(Styles[scopeName].Foreground);
+                return cached;
             }
 
-            return null;
+            string color = null;
+            if (Styles != null && Styles.Contains(scopeName))
+            {
+                color = ToRichTextColor(Styles[scopeName].Foreground);
+            }
+
+            _colorCache[scopeName] = color;
+            return color;
         }
 
         // ColorCode stores colors as #AARRGGBB; UIToolkit rich text wants #RRGGBB.
@@ -223,13 +252,6 @@ namespace Kmd.MarkdownReader
             }
 
             return null;
-        }
-
-        // Neutralize characters UIToolkit would otherwise parse as rich-text markup.
-        // Matches the escaping used elsewhere in the renderer (LiteralInlineRenderer).
-        private static string Escape(string text)
-        {
-            return UIMarkdownRenderer.EscapeRichText(text);
         }
 
         private static ILanguageParser BuildParser()
