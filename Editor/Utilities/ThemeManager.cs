@@ -6,35 +6,72 @@ using UnityEngine.UIElements;
 namespace Kmd.MarkdownReader
 {
     /// <summary>
-    /// Loads and applies the dark/light Markdown stylesheet to render roots based
-    /// on the current editor skin, and keeps registered roots in sync when the
-    /// editor theme changes mid-session.
+    /// Loads and applies the Markdown stylesheet for the selected theme to render
+    /// roots, and keeps registered roots in sync when the editor skin or the theme
+    /// changes mid-session.
+    ///
+    /// Two themes are offered: "kmd" (the branded palette, with separate dark/light
+    /// sheets chosen by the editor skin) and "Unity" (a single sheet driven by the
+    /// editor's own --unity-colors-* variables, so it blends into the Editor and
+    /// follows the skin automatically). The choice persists in EditorPrefs.
     /// </summary>
     public static class ThemeManager
     {
         private const string DarkSheetName = "MarkdownReaderDark";
         private const string LightSheetName = "MarkdownReaderLight";
+        private const string UnitySheetName = "MarkdownReaderUnity";
+        private const string ThemePrefKey = "Kmd.MarkdownReader.Theme";
+
+        public const string ThemeKmd = "kmd";
+        public const string ThemeUnity = "Unity";
+
+        /// <summary>Theme names in display order, for the theme selector.</summary>
+        public static readonly string[] ThemeChoices = { ThemeKmd, ThemeUnity };
 
         private static readonly HashSet<VisualElement> Roots = new HashSet<VisualElement>();
         private static StyleSheet _darkSheet;
         private static StyleSheet _lightSheet;
+        private static StyleSheet _unitySheet;
         private static bool _lastIsDark;
         private static bool _hooked;
         private static bool _needsApply;
 
         public static bool IsDarkTheme => EditorGUIUtility.isProSkin;
 
-        /// <summary>Path of the stylesheet for the current skin, or null if missing.</summary>
+        /// <summary>The selected theme ("kmd" or "Unity"); persisted across sessions.</summary>
+        public static string CurrentTheme
+        {
+            get => EditorPrefs.GetString(ThemePrefKey, ThemeKmd) == ThemeUnity ? ThemeUnity : ThemeKmd;
+        }
+
+        /// <summary>Switches theme and re-applies it to every registered root live.</summary>
+        public static void SetTheme(string theme)
+        {
+            var normalized = theme == ThemeUnity ? ThemeUnity : ThemeKmd;
+            if (normalized == CurrentTheme)
+            {
+                return;
+            }
+
+            EditorPrefs.SetString(ThemePrefKey, normalized);
+            Roots.RemoveWhere(r => r == null || r.panel == null);
+            foreach (var root in Roots)
+            {
+                ApplyTheme(root);
+            }
+        }
+
+        /// <summary>Path of the active stylesheet, or null if it isn't importable yet.</summary>
         public static string GetThemeUssPath()
         {
-            var sheet = GetSheet(IsDarkTheme);
+            var sheet = GetActiveSheet();
             return sheet != null ? AssetDatabase.GetAssetPath(sheet) : null;
         }
 
         /// <summary>
         /// Applies the current theme to <paramref name="root"/> and keeps it updated
-        /// when the editor skin changes. Call <see cref="Unregister"/> when the host
-        /// (inspector/window) is disabled.
+        /// when the editor skin or theme changes. Call <see cref="Unregister"/> when
+        /// the host (inspector/window) is disabled.
         /// </summary>
         public static void Register(VisualElement root)
         {
@@ -63,7 +100,7 @@ namespace Kmd.MarkdownReader
             }
         }
 
-        /// <summary>Swaps in the stylesheet matching the current skin (idempotent).</summary>
+        /// <summary>Swaps in the stylesheet matching the current theme + skin (idempotent).</summary>
         public static void ApplyTheme(VisualElement root)
         {
             if (root == null)
@@ -71,18 +108,22 @@ namespace Kmd.MarkdownReader
                 return;
             }
 
-            var dark = GetSheet(true);
-            var light = GetSheet(false);
+            var dark = GetSheet(SheetKind.Dark);
+            var light = GetSheet(SheetKind.Light);
+            var unity = GetSheet(SheetKind.Unity);
 
             if (dark != null) root.styleSheets.Remove(dark);
             if (light != null) root.styleSheets.Remove(light);
+            if (unity != null) root.styleSheets.Remove(unity);
 
-            var active = IsDarkTheme ? dark : light;
+            var active = GetActiveSheet();
             if (active != null) root.styleSheets.Add(active);
         }
 
         // UnityEditor exposes no public themeChanged event, so poll the skin on the
         // editor update tick (a cheap bool compare) and re-apply only on a change.
+        // (The "kmd" theme has separate dark/light sheets; "Unity" follows the skin
+        // through its variables, so a skin flip there is a no-op re-apply.)
         private static void OnEditorUpdate()
         {
             var dark = IsDarkTheme;
@@ -100,19 +141,35 @@ namespace Kmd.MarkdownReader
 
             // If the stylesheet wasn't importable yet (e.g. right after a domain
             // reload), keep retrying on later ticks until it loads and applies.
-            _needsApply = Roots.Count > 0 && GetSheet(dark) == null;
+            _needsApply = Roots.Count > 0 && GetActiveSheet() == null;
         }
 
-        private static StyleSheet GetSheet(bool dark)
+        private static StyleSheet GetActiveSheet()
         {
-            if (dark)
+            if (CurrentTheme == ThemeUnity)
             {
-                if (_darkSheet == null) _darkSheet = LoadSheet(DarkSheetName);
-                return _darkSheet;
+                return GetSheet(SheetKind.Unity);
             }
 
-            if (_lightSheet == null) _lightSheet = LoadSheet(LightSheetName);
-            return _lightSheet;
+            return GetSheet(IsDarkTheme ? SheetKind.Dark : SheetKind.Light);
+        }
+
+        private enum SheetKind { Dark, Light, Unity }
+
+        private static StyleSheet GetSheet(SheetKind kind)
+        {
+            switch (kind)
+            {
+                case SheetKind.Unity:
+                    if (_unitySheet == null) _unitySheet = LoadSheet(UnitySheetName);
+                    return _unitySheet;
+                case SheetKind.Light:
+                    if (_lightSheet == null) _lightSheet = LoadSheet(LightSheetName);
+                    return _lightSheet;
+                default:
+                    if (_darkSheet == null) _darkSheet = LoadSheet(DarkSheetName);
+                    return _darkSheet;
+            }
         }
 
         private static StyleSheet LoadSheet(string sheetName)

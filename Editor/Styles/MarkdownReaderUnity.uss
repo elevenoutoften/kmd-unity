@@ -1,18 +1,25 @@
 /*
- * kmd Markdown Reader - light theme.
- * Same structure as the dark sheet; light tokens from kmd/src/tokens.css.
- * Light tokens: neutral #f5f7f8, surface #ffffff, surface-muted #eceff3,
- * on-surface #15171a, secondary #626872, tertiary/link #7c4dff, border #d8dee6.
+ * kmd Markdown Reader - Unity editor theme.
+ * Same layout and typography as the kmd theme, but every surface/border/text
+ * colour is driven by Unity's built-in editor variables (--unity-colors-*), so
+ * the reader blends into the Editor and follows the active editor skin
+ * (dark/light) automatically.
+ *
+ * A few colours are emitted as rich text in C# (the inline-code chip, links,
+ * footnote refs, task-list glyphs, and the syntax-highlight palette). Those are
+ * skin-aware but NOT theme-aware: they keep the kmd accent palette in both
+ * themes, so e.g. an inline-code chip sits on the kmd surface colour rather than
+ * the editor surface used by fenced code blocks.
  */
 
 #md-scroll-view {
     flex-grow: 1;
-    background-color: #f5f7f8;
+    background-color: var(--unity-colors-window-background);
 }
 
 #md-body {
-    background-color: #f5f7f8;
-    color: #15171a;
+    background-color: var(--unity-colors-window-background);
+    color: var(--unity-colors-default-text);
     font-size: 17px;
     -unity-font-definition: url("../../Fonts/Inter/Inter-Regular.ttf");
     padding-top: 36px;
@@ -30,7 +37,7 @@
 .md-h5,
 .md-h6 {
     -unity-font-definition: url("../../Fonts/Inter/Inter-SemiBold.ttf");
-    color: #15171a;
+    color: var(--unity-colors-default-text);
     margin-top: 36px;
     margin-bottom: 8px;
     white-space: normal;
@@ -41,20 +48,20 @@
     font-size: 34px;
     padding-bottom: 8px;
     border-bottom-width: 1px;
-    border-bottom-color: #d8dee6;
+    border-bottom-color: var(--unity-colors-default-border);
 }
 
 .md-h2 {
     font-size: 24px;
     padding-bottom: 4px;
     border-bottom-width: 1px;
-    border-bottom-color: #d8dee6;
+    border-bottom-color: var(--unity-colors-default-border);
 }
 
 .md-h3 { font-size: 20px; }
 .md-h4 { font-size: 17px; }
 .md-h5 { font-size: 14px; }
-.md-h6 { font-size: 14px; color: #626872; }
+.md-h6 { font-size: 14px; opacity: 0.6; }
 
 /* Body text --------------------------------------------------------------- */
 .md-paragraph {
@@ -72,7 +79,7 @@
     flex-shrink: 0;
     padding-right: 8px;
     -unity-text-align: upper-right;
-    color: #626872;
+    opacity: 0.65;
 }
 .md-list-item-content { flex-grow: 1; flex-shrink: 1; }
 .md-list-item-content .md-paragraph { margin-top: 0; margin-bottom: 0; }
@@ -85,8 +92,8 @@
 .md-code {
     -unity-font-definition: url("../../Fonts/JetBrainsMono/JetBrainsMono-Regular.ttf");
     font-size: 14px;
-    color: #15171a;
-    background-color: #eceff3;
+    color: var(--unity-colors-default-text);
+    background-color: var(--unity-colors-helpbox-background);
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
     border-bottom-left-radius: 8px;
@@ -107,16 +114,16 @@
     right: 8px;
     opacity: 0;
     font-size: 11px;
-    color: #626872;
-    background-color: #ffffff;
+    color: var(--unity-colors-default-text);
+    background-color: var(--unity-colors-button-background);
     border-top-width: 1px;
     border-right-width: 1px;
     border-bottom-width: 1px;
     border-left-width: 1px;
-    border-top-color: #d8dee6;
-    border-right-color: #d8dee6;
-    border-bottom-color: #d8dee6;
-    border-left-color: #d8dee6;
+    border-top-color: var(--unity-colors-default-border);
+    border-right-color: var(--unity-colors-default-border);
+    border-bottom-color: var(--unity-colors-default-border);
+    border-left-color: var(--unity-colors-default-border);
     border-top-left-radius: 6px;
     border-top-right-radius: 6px;
     border-bottom-left-radius: 6px;
@@ -128,12 +135,12 @@
 }
 .md-codeblock:hover .md-copy-button { opacity: 1; }
 
-/* Tables — kmd uses horizontal rules only (no outer or vertical borders). --- */
+/* Tables — horizontal rules only (no outer or vertical borders). ---------- */
 .md-table-scroll { margin-top: 6px; margin-bottom: 16px; max-width: 100%; }
 .md-table { flex-direction: column; }
-.md-table-header { flex-direction: row; background-color: #eceff3; }
+.md-table-header { flex-direction: row; background-color: var(--unity-colors-inspector_titlebar-background); }
 .md-table-row { flex-direction: row; }
-.md-table-row:hover { background-color: #eceff3; }
+.md-table-row:hover { background-color: var(--unity-colors-alternated_rows-background); }
 .md-th,
 .md-td {
     flex-shrink: 0;
@@ -143,14 +150,14 @@
     padding-left: 16px;
     padding-right: 16px;
     border-bottom-width: 1px;
-    border-bottom-color: #d8dee6;
+    border-bottom-color: var(--unity-colors-default-border);
 }
 .md-th {
     -unity-font-definition: url("../../Fonts/Inter/Inter-SemiBold.ttf");
     font-size: 12px;
     letter-spacing: 1px;
     border-bottom-width: 2px;
-    color: #626872;
+    opacity: 0.7;
 }
 .md-th .md-paragraph,
 .md-td .md-paragraph { margin-top: 0; margin-bottom: 0; }
@@ -158,8 +165,8 @@
 /* Blockquote -------------------------------------------------------------- */
 .md-blockquote {
     border-left-width: 3px;
-    border-left-color: #d8dee6;
-    background-color: #ffffff;
+    border-left-color: var(--unity-colors-default-border);
+    background-color: var(--unity-colors-helpbox-background);
     padding-top: 16px;
     padding-right: 24px;
     padding-bottom: 16px;
@@ -169,13 +176,14 @@
     border-top-right-radius: 8px;
     border-bottom-right-radius: 8px;
 }
-.md-blockquote .md-paragraph { color: #626872; }
+.md-blockquote .md-paragraph { opacity: 0.75; }
 
-/* Alerts (GitHub callouts) ------------------------------------------------ */
+/* Alerts (GitHub callouts). Accent colours kept from the kmd theme — they read
+   correctly on both editor skins. ---------------------------------------- */
 .md-alert {
     border-left-width: 4px;
-    border-left-color: #2563eb;
-    background-color: #ffffff;
+    border-left-color: #5b9cf5;
+    background-color: var(--unity-colors-helpbox-background);
     padding-top: 8px;
     padding-right: 16px;
     padding-bottom: 8px;
@@ -193,38 +201,38 @@
     letter-spacing: 1px;
     margin-bottom: 4px;
 }
-.md-alert-note { border-left-color: #2563eb; }
-.md-alert-title-note { color: #2563eb; }
-.md-alert-tip { border-left-color: #0f8a5f; }
-.md-alert-title-tip { color: #0f8a5f; }
-.md-alert-important { border-left-color: #7c4dff; }
-.md-alert-title-important { color: #7c4dff; }
-.md-alert-warning { border-left-color: #b7791f; }
-.md-alert-title-warning { color: #b7791f; }
-.md-alert-caution { border-left-color: #b42318; }
-.md-alert-title-caution { color: #b42318; }
+.md-alert-note { border-left-color: #5b9cf5; }
+.md-alert-title-note { color: #5b9cf5; }
+.md-alert-tip { border-left-color: #3ebd82; }
+.md-alert-title-tip { color: #3ebd82; }
+.md-alert-important { border-left-color: #9b6dff; }
+.md-alert-title-important { color: #9b6dff; }
+.md-alert-warning { border-left-color: #d4a735; }
+.md-alert-title-warning { color: #d4a735; }
+.md-alert-caution { border-left-color: #e8594e; }
+.md-alert-title-caution { color: #e8594e; }
 
 /* Horizontal rule --------------------------------------------------------- */
-.md-hr { height: 1px; background-color: #d8dee6; margin-top: 36px; margin-bottom: 36px; }
+.md-hr { height: 1px; background-color: var(--unity-colors-default-border); margin-top: 36px; margin-bottom: 36px; }
 
 /* States ------------------------------------------------------------------ */
-.md-empty { color: #626872; -unity-font-style: italic; margin-top: 8px; }
-.md-error { color: #b42318; white-space: normal; }
-.md-image-placeholder { color: #626872; -unity-font-style: italic; }
+.md-empty { opacity: 0.6; -unity-font-style: italic; margin-top: 8px; }
+.md-error { color: #e8594e; white-space: normal; }
+.md-image-placeholder { opacity: 0.6; -unity-font-style: italic; }
 
 /* Footnotes --------------------------------------------------------------- */
 .md-footnotes { margin-top: 36px; }
-.md-footnotes-rule { height: 1px; background-color: #d8dee6; margin-bottom: 16px; }
+.md-footnotes-rule { height: 1px; background-color: var(--unity-colors-default-border); margin-bottom: 16px; }
 .md-footnote { flex-direction: row; margin-bottom: 4px; }
 .md-footnote-num {
     min-width: 28px;
     flex-shrink: 0;
     padding-right: 8px;
     -unity-text-align: upper-right;
-    color: #626872;
+    opacity: 0.65;
 }
 .md-footnote-content { flex-grow: 1; flex-shrink: 1; }
-.md-footnote-content .md-paragraph { margin-top: 0; margin-bottom: 0; color: #626872; font-size: 14px; }
+.md-footnote-content .md-paragraph { margin-top: 0; margin-bottom: 0; opacity: 0.7; font-size: 14px; }
 
 /* Images ------------------------------------------------------------------ */
 .md-image { max-width: 100%; margin-top: 6px; margin-bottom: 16px; }
@@ -235,25 +243,24 @@
     border-right-width: 1px;
     border-bottom-width: 1px;
     border-left-width: 1px;
-    border-top-color: #b42318;
-    border-right-color: #b42318;
-    border-bottom-color: #b42318;
-    border-left-color: #b42318;
+    border-top-color: #e8594e;
+    border-right-color: #e8594e;
+    border-bottom-color: #e8594e;
+    border-left-color: #e8594e;
 }
 
 /* Outline sidebar / document shell --------------------------------------- */
 .md-document-shell { flex-grow: 1; }
 .md-document-row { flex-direction: row; flex-grow: 1; }
 .md-topbar { flex-direction: row; align-items: center; }
-.md-theme-select { margin-left: auto; margin-right: 4px; margin-top: 2px; margin-bottom: 2px; min-width: 96px; }
 .md-outline-toggle {
     align-self: flex-start;
     margin-top: 4px;
     margin-left: 4px;
     margin-bottom: 2px;
     font-size: 11px;
-    color: #626872;
-    background-color: #ffffff;
+    color: var(--unity-colors-default-text);
+    background-color: var(--unity-colors-button-background);
     border-top-width: 0;
     border-right-width: 0;
     border-bottom-width: 0;
@@ -263,12 +270,13 @@
     padding-left: 8px;
     padding-right: 8px;
 }
+.md-theme-select { margin-left: auto; margin-right: 4px; margin-top: 2px; margin-bottom: 2px; min-width: 96px; }
 .md-outline-sidebar {
     width: 240px;
     flex-shrink: 0;
-    background-color: #ffffff;
+    background-color: var(--unity-colors-default-background);
     border-right-width: 1px;
-    border-right-color: #d8dee6;
+    border-right-color: var(--unity-colors-default-border);
     padding-top: 16px;
     padding-bottom: 16px;
     padding-left: 16px;
@@ -277,7 +285,8 @@
 .md-outline-item {
     -unity-text-align: middle-left;
     background-color: rgba(0, 0, 0, 0);
-    color: #626872;
+    color: var(--unity-colors-default-text);
+    opacity: 0.7;
     font-size: 14px;
     border-top-width: 0;
     border-right-width: 0;
@@ -294,8 +303,8 @@
     border-bottom-right-radius: 6px;
     white-space: nowrap;
 }
-.md-outline-item:hover { color: #15171a; }
-.md-outline-active { color: #15171a; border-left-width: 2px; border-left-color: #7c4dff; }
+.md-outline-item:hover { opacity: 1; }
+.md-outline-active { opacity: 1; border-left-width: 2px; border-left-color: #9b6dff; }
 .md-outline-level-1 { padding-left: 14px; }
 .md-outline-level-2 { padding-left: 30px; }
 .md-outline-level-3 { padding-left: 46px; }

@@ -24,13 +24,29 @@ namespace Kmd.MarkdownReader
             name = "md-document-shell";
             AddToClassList("md-document-shell");
 
+            // Top bar: outline toggle on the left, theme selector pushed to the right.
+            var topbar = new VisualElement { name = "md-topbar" };
+            topbar.AddToClassList("md-topbar");
+            Add(topbar);
+
             _toggle = new Button(() => SetOutlineVisible(!_outlineVisible))
             {
                 name = "md-outline-toggle",
                 text = "☰ Outline",
             };
             _toggle.AddToClassList("md-outline-toggle");
-            Add(_toggle);
+            topbar.Add(_toggle);
+
+            var themeSelect = new DropdownField
+            {
+                name = "md-theme-select",
+                choices = new List<string>(ThemeManager.ThemeChoices),
+                value = ThemeManager.CurrentTheme,
+                tooltip = "Reader colour theme",
+            };
+            themeSelect.AddToClassList("md-theme-select");
+            themeSelect.RegisterValueChangedCallback(evt => ThemeManager.SetTheme(evt.newValue));
+            topbar.Add(themeSelect);
 
             var row = new VisualElement { name = "md-document-row" };
             row.AddToClassList("md-document-row");

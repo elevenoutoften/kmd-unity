@@ -248,6 +248,8 @@
 /* Outline sidebar / document shell --------------------------------------- */
 .md-document-shell { flex-grow: 1; }
 .md-document-row { flex-direction: row; flex-grow: 1; }
+.md-topbar { flex-direction: row; align-items: center; }
+.md-theme-select { margin-left: auto; margin-right: 4px; margin-top: 2px; margin-bottom: 2px; min-width: 96px; }
 .md-outline-toggle {
     align-self: flex-start;
     margin-top: 4px;
