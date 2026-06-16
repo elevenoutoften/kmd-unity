@@ -50,7 +50,7 @@ Each Markdig AST node type maps to a custom `MarkdownObjectRenderer` that produc
 | `CodeBlock` | `CodeBlockRenderer` | Label with `md-code` (indented code, no highlighting) |
 | `QuoteBlock` | `QuoteBlockRenderer` | VisualElement with `md-blockquote` + left border accent |
 | `ThematicBreakBlock` | `ThematicBreakBlockRenderer` | VisualElement with `md-hr` |
-| `TableBlock` | `TableBlockRenderer` | VisualElement grid inside ScrollView |
+| `TableBlock` | `TableBlockRenderer` | VisualElement grid inside ScrollView; columns are measured and pinned once after first layout |
 | `AlertBlock` | `AlertBlockRenderer` | Styled callout with icon + title + body |
 | `EmphasisInline` | `EmphasisInlineRenderer` | `<b>` / `<i>` / `<s>` rich text tags |
 | `CodeInline` | `CodeInlineRenderer` | Inline code chip (click-to-copy) via `InlineFlowBuilder.EmitChip` |
@@ -83,7 +83,7 @@ Each code block renders as a single `Label` with `enableRichText = true` and a m
 | Inline code | ✅ v1 | Click-to-copy chip via `InlineFlowBuilder` |
 | Fenced code blocks | ✅ v1 | Syntax highlighting + copy button |
 | Indented code blocks | ✅ v1 | Plain monospace |
-| GFM tables | ✅ v1 | Grid layout in ScrollView |
+| GFM tables | ✅ v1 | Grid layout in ScrollView; widths do not reflow on window resize |
 | Task lists | ✅ v1 | Read-only ☑/☐ glyphs |
 | Blockquotes | ✅ v1 | Left border accent |
 | Ordered / unordered lists | ✅ v1 | Nested via `<margin-left>` |
@@ -181,6 +181,20 @@ love.axis.kmd-unity/
     └── Editor/
         └── Kmd.MarkdownReader.Editor.Tests.asmdef
 ```
+
+## Table Layout Behavior
+
+Tables align columns with a one-shot measure-then-pin pass after the first layout.
+This is intentional: UI Toolkit has no native table layout, so each row would
+otherwise size its cells independently and columns would drift out of alignment.
+
+Column widths do not reflow when the window is resized. Wide tables sit inside the
+`md-table-scroll` horizontal `ScrollView`, which prevents content clipping without
+adding per-resize layout work.
+
+Theme or font changes still reset table widths because the document is fully
+re-rendered by `MarkdownViewerWindow`, which rebuilds the table and repeats the
+initial alignment pass.
 
 ## UIToolkit Constraints
 

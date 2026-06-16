@@ -62,14 +62,14 @@ namespace Kmd.MarkdownReader
             AlignColumnsWhenLaidOut(tableEl, grid);
         }
 
-        // UI Toolkit has no table layout: each flex row sizes its own cells to
-        // their content, so columns don't line up between rows. Once the table has
-        // been laid out, measure the widest cell in each column and pin every cell
-        // in that column to it. Re-run the alignment when layout changes, but
-        // debounce subsequent passes while a resize is in flight.
+        // Column widths are pinned once after the first layout pass and intentionally
+        // never recomputed on resize. UI Toolkit has no table layout, so measure-then-pin
+        // is the only way to align columns. Horizontal scroll (md-table-scroll) prevents
+        // content clipping. Theme or font changes trigger a full re-render via
+        // MarkdownViewerWindow, which naturally resets columns.
         private static void AlignColumnsWhenLaidOut(VisualElement tableEl, List<List<VisualElement>> grid)
         {
-            void RealignColumns()
+            void AlignColumns()
             {
                 var columns = 0;
                 foreach (var rowCells in grid)
@@ -105,35 +105,18 @@ namespace Kmd.MarkdownReader
                         }
                     }
                 }
-
             }
-
-            IVisualElementScheduledItem pendingRealignment = null;
-            var hasAlignedOnce = false;
 
             EventCallback<GeometryChangedEvent> geometryCallback = null;
             geometryCallback = _ =>
             {
-                if (!hasAlignedOnce)
-                {
-                    hasAlignedOnce = true;
-                    RealignColumns();
-                    return;
-                }
-
-                pendingRealignment?.Pause();
-                pendingRealignment = tableEl.schedule.Execute(() =>
-                {
-                    pendingRealignment = null;
-                    RealignColumns();
-                }).StartingIn(100);
+                AlignColumns();
+                tableEl.UnregisterCallback(geometryCallback);
             };
 
             EventCallback<DetachFromPanelEvent> detachCallback = null;
             detachCallback = _ =>
             {
-                pendingRealignment?.Pause();
-                pendingRealignment = null;
                 tableEl.UnregisterCallback(geometryCallback);
                 tableEl.UnregisterCallback(detachCallback);
             };
