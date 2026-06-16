@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Markdig.Renderers.Html;
@@ -12,11 +13,14 @@ namespace Kmd.MarkdownReader
         public int Level;
         public string Text;
         public string Id;
+        public string Anchor;
     }
 
     /// <summary>Walks a parsed document and extracts its heading tree.</summary>
     public static class OutlineExtractor
     {
+        private const string AnchorPrefix = "kmd-outline-heading-";
+
         public static List<OutlineEntry> Extract(MarkdownDocument document)
         {
             var entries = new List<OutlineEntry>();
@@ -25,6 +29,7 @@ namespace Kmd.MarkdownReader
                 return entries;
             }
 
+            var index = 0;
             foreach (var heading in document.Descendants().OfType<HeadingBlock>())
             {
                 entries.Add(new OutlineEntry
@@ -32,10 +37,16 @@ namespace Kmd.MarkdownReader
                     Level = heading.Level,
                     Text = GetInlineText(heading.Inline),
                     Id = heading.GetAttributes().Id,
+                    Anchor = CreateAnchor(index++),
                 });
             }
 
             return entries;
+        }
+
+        internal static string CreateAnchor(int index)
+        {
+            return AnchorPrefix + index.ToString(CultureInfo.InvariantCulture);
         }
 
         private static string GetInlineText(ContainerInline inline)

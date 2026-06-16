@@ -12,6 +12,8 @@ namespace Kmd.MarkdownReader
 {
     public class UIMarkdownRenderer : RendererBase
     {
+        private const float HeadingScrollPadding = 12f;
+
         public ScrollView RootElement { get; }
         public VisualElement ContentElement { get; }
 
@@ -29,6 +31,8 @@ namespace Kmd.MarkdownReader
         private readonly StringBuilder _currentText = new StringBuilder();
 
         private readonly Dictionary<string, VisualElement> _headingRegistry = new Dictionary<string, VisualElement>();
+        private readonly Dictionary<string, VisualElement> _outlineHeadingRegistry = new Dictionary<string, VisualElement>();
+        private int _headingIndex;
 
         // Built once: the pipeline is immutable and rebuilding ~12 extensions per renderer is wasteful.
         private static readonly MarkdownPipeline SharedPipeline = CreatePipeline();
@@ -91,6 +95,8 @@ namespace Kmd.MarkdownReader
         {
             ContentElement.Clear();
             _headingRegistry.Clear();
+            _outlineHeadingRegistry.Clear();
+            _headingIndex = 0;
             _blockStack.Clear();
             _currentLabel = null;
             _currentText.Clear();
@@ -272,6 +278,17 @@ namespace Kmd.MarkdownReader
             }
         }
 
+        public void RegisterOutlineHeading(string id, VisualElement element)
+        {
+            if (element == null)
+            {
+                return;
+            }
+
+            _outlineHeadingRegistry[OutlineExtractor.CreateAnchor(_headingIndex++)] = element;
+            RegisterHeading(id, element);
+        }
+
         public void RegisterHeading(string id, VisualElement element)
         {
             if (!string.IsNullOrEmpty(id) && !_headingRegistry.ContainsKey(id))
@@ -285,15 +302,71 @@ namespace Kmd.MarkdownReader
             return _headingRegistry.TryGetValue(id, out element);
         }
 
+        public bool TryGetOutlineHeading(string anchor, out VisualElement element)
+        {
+            return _outlineHeadingRegistry.TryGetValue(anchor, out element);
+        }
+
+        public ScrollView ScrollToOutlineHeading(string anchor)
+        {
+            VisualElement element;
+            if (_outlineHeadingRegistry.TryGetValue(anchor, out element))
+            {
+                ScrollToElementTop(element);
+            }
+
+            return RootElement;
+        }
+
         public ScrollView ScrollToHeading(string id)
         {
             VisualElement element;
             if (_headingRegistry.TryGetValue(id, out element))
             {
-                RootElement.ScrollTo(element);
+                ScrollToElementTop(element);
             }
 
             return RootElement;
+        }
+
+        private void ScrollToElementTop(VisualElement element)
+        {
+            if (!TryScrollToElementTop(element))
+            {
+                RootElement.ScrollTo(element);
+                RootElement.schedule.Execute(() => { TryScrollToElementTop(element); });
+            }
+        }
+
+        private bool TryScrollToElementTop(VisualElement element)
+        {
+            if (element == null
+                || RootElement.panel == null
+                || element.panel == null
+                || RootElement.layout.height <= 0f
+                || RootElement.contentContainer.layout.height <= 0f)
+            {
+                return false;
+            }
+
+            var currentOffset = RootElement.scrollOffset;
+            var targetOffset = currentOffset.y
+                + element.worldBound.yMin
+                - RootElement.worldBound.yMin
+                - HeadingScrollPadding;
+
+            if (float.IsNaN(targetOffset) || float.IsInfinity(targetOffset))
+            {
+                return false;
+            }
+
+            var maxOffset = Mathf.Max(
+                0f,
+                RootElement.contentContainer.layout.height - RootElement.layout.height);
+            RootElement.scrollOffset = new Vector2(
+                currentOffset.x,
+                Mathf.Clamp(targetOffset, 0f, maxOffset));
+            return true;
         }
 
         // UI Toolkit's rich-text parser treats only '<' as markup and decodes NO

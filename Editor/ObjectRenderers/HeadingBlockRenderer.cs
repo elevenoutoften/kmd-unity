@@ -15,7 +15,7 @@ namespace Kmd.MarkdownReader
             renderer.FlushText();
 
             var attributes = obj.GetAttributes();
-            renderer.RegisterHeading(attributes.Id, label);
+            renderer.RegisterOutlineHeading(attributes.Id, label);
         }
     }
 }

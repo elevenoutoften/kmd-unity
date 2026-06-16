@@ -78,6 +78,26 @@ namespace Kmd.MarkdownReader.Tests
         }
 
         [Test]
+        public void OutlineEntries_TargetSeparateHeadingsWhenIdsRepeat()
+        {
+            var renderer = new UIMarkdownRenderer();
+            renderer.Render("# First {#same}\n\n# Second {#same}");
+
+            var entries = OutlineExtractor.Extract(renderer.Document);
+            Assert.AreEqual(2, entries.Count);
+            Assert.AreEqual("same", entries[0].Id);
+            Assert.AreEqual("same", entries[1].Id);
+            Assert.AreNotEqual(entries[0].Anchor, entries[1].Anchor);
+
+            Assert.IsTrue(renderer.TryGetOutlineHeading(entries[0].Anchor, out var first));
+            Assert.IsTrue(renderer.TryGetOutlineHeading(entries[1].Anchor, out var second));
+            Assert.AreNotSame(first, second);
+
+            Assert.IsTrue(renderer.TryGetHeading("same", out var fragmentTarget));
+            Assert.AreSame(first, fragmentTarget);
+        }
+
+        [Test]
         public void Bold_EmitsRichTextTag()
         {
             var body = Render("**bold**");

@@ -293,6 +293,8 @@
     background-color: rgba(128, 128, 128, 0.08);
     border-right-width: 1px;
     border-right-color: rgba(128, 128, 128, 0.4);
+}
+.md-outline-list {
     padding-top: 16px;
     padding-bottom: 16px;
     padding-left: 16px;
