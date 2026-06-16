@@ -49,12 +49,14 @@ namespace Kmd.MarkdownReader.Tests
         private static string BuildLargeInlineDocument()
         {
             var markdown = new StringBuilder();
-            for (var i = 1; i <= 200; i++)
+            for (var i = 1; i <= 100; i++)
             {
                 markdown
-                    .Append("Text `code").Append(i).Append("a` more [link").Append(i).Append("a](https://example.com/").Append(i).Append("a) ")
-                    .Append("`code").Append(i).Append("b` [link").Append(i).Append("b](https://example.com/").Append(i).Append("b) ")
-                    .Append("`code").Append(i).Append("c` trailing.\n\n");
+                    .Append("This paragraph shows how renderer pass ").Append(i).Append(" keeps prose together while `code").Append(i).Append("a` ")
+                    .Append("and [guide").Append(i).Append("a](https://example.com/").Append(i).Append("/guide) appear inside realistic technical writing. ")
+                    .Append("The sample adds enough ordinary words to expose per word label churn, references `code").Append(i).Append("b`, ")
+                    .Append("then uses [note").Append(i).Append("b](https://example.com/").Append(i).Append("/note) before `code").Append(i).Append("c` closes the sentence ")
+                    .Append("with measurable prose for the inline budget test.\n\n");
             }
 
             return markdown.ToString();
@@ -232,7 +234,10 @@ namespace Kmd.MarkdownReader.Tests
         public void LargeInlineDocument_ElementCountBudget()
         {
             var body = Render(BuildLargeInlineDocument());
-            Assert.Less(CountDescendants(body), 5000);
+            // Coarse-run (runs + chips): ~800-1200 elements.
+            // Per-word regression (one Label per word): ~3500-5000 elements.
+            // Budget must be between these to FAIL under regression.
+            Assert.Less(CountDescendants(body), 3000);
         }
 
         [Test]
