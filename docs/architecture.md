@@ -44,7 +44,7 @@ Each Markdig AST node type maps to a custom `MarkdownObjectRenderer` that produc
 | Markdig Node | Renderer | UIToolkit Output |
 |---|---|---|
 | `HeadingBlock` | `HeadingBlockRenderer` | Label with `md-h1`–`md-h6` class, anchor registration |
-| `ParagraphBlock` | `ParagraphBlockRenderer` | Label with `md-paragraph` class |
+| `ParagraphBlock` | `ParagraphBlockRenderer` | Single rich-text Label, or `InlineFlowBuilder` flow when links/code present |
 | `ListBlock` | `ListBlockRenderer` | VisualElement with `md-list`, `<margin-left>` rich text for bullets |
 | `FencedCodeBlock` | `FencedCodeBlockRenderer` | VisualElement `md-codeblock` + Label (syntax-highlighted) + copy button |
 | `CodeBlock` | `CodeBlockRenderer` | Label with `md-code` (indented code, no highlighting) |
@@ -53,7 +53,7 @@ Each Markdig AST node type maps to a custom `MarkdownObjectRenderer` that produc
 | `TableBlock` | `TableBlockRenderer` | VisualElement grid inside ScrollView |
 | `AlertBlock` | `AlertBlockRenderer` | Styled callout with icon + title + body |
 | `EmphasisInline` | `EmphasisInlineRenderer` | `<b>` / `<i>` / `<s>` rich text tags |
-| `CodeInline` | `CodeInlineRenderer` | Inline `<mark>`/`<color>` chip in the paragraph label |
+| `CodeInline` | `CodeInlineRenderer` | Inline code chip (click-to-copy) via `InlineFlowBuilder.EmitChip` |
 | `LinkInline` | `LinkInlineRenderer` | `<link="url">` rich text (best-effort click routing) |
 | `AutolinkInline` | `AutolinkInlineRenderer` | `<link="url">` rich text for bare URLs/emails |
 | `LiteralInline` | `LiteralInlineRenderer` | Plain text (`<`-neutralized for rich text) |
@@ -80,7 +80,7 @@ Each code block renders as a single `Label` with `enableRichText = true` and a m
 | Paragraphs | ✅ v1 | |
 | Bold / Italic / Strikethrough | ✅ v1 | `<b>`, `<i>`, `<s>` rich text tags |
 | Links (fragment, internal, external) | ✅ v1 | `<link>` tags + sanitized URL policy; click-to-open is best-effort (see Security) |
-| Inline code | ✅ v1 | Tinted inline `<mark>` chip (not click-to-copy) |
+| Inline code | ✅ v1 | Click-to-copy chip via `InlineFlowBuilder` |
 | Fenced code blocks | ✅ v1 | Syntax highlighting + copy button |
 | Indented code blocks | ✅ v1 | Plain monospace |
 | GFM tables | ✅ v1 | Grid layout in ScrollView |
@@ -131,7 +131,8 @@ love.axis.kmd-unity/
 │   │   ├── MarkdownInspector.cs           # CustomEditor for .md assets
 │   │   ├── MarkdownViewerWindow.cs        # EditorWindow for standalone viewing
 │   │   ├── DocumentShell.cs               # Outline sidebar + scroll container
-│   │   └── OutlineExtractor.cs            # Heading tree extraction for the outline
+│   │   ├── OutlineExtractor.cs            # Heading tree extraction for the outline
+│   │   └── InlineFlowBuilder.cs           # Inline flow: links + click-to-copy code chips
 │   ├── ObjectRenderers/
 │   │   ├── HeadingBlockRenderer.cs
 │   │   ├── ParagraphBlockRenderer.cs
@@ -216,18 +217,19 @@ All dependencies are permissively licensed and can be bundled in the package.
 
 ## Click-to-Copy
 
-Only **fenced code blocks** have a copy button (`CodeBlockCopyButton`). Inline code is
-rendered as a styled `<mark>` chip inside the surrounding paragraph label, not a
-separate clickable element, so it is **not** click-to-copy.
+**Fenced code blocks** have a copy button (`CodeBlockCopyButton`).
+
+**Inline code** is rendered as a click-to-copy chip via `InlineFlowBuilder.EmitChip`. Clicking copies the code content to the clipboard and briefly changes the tooltip to "Copied!". Inline code chips are only used inside `InlineFlowBuilder` flows (paragraphs with links or inline code); plain paragraphs still use a single rich-text Label.
 
 ```csharp
-// Code block copy button (CodeBlockCopyButton.Create)
-var button = new Button { text = "Copy" };
-button.clicked += () => {
-    GUIUtility.systemCopyBuffer = codeText;
-    button.text = "✓ Copied";
-    button.schedule.Execute(() => button.text = "Copy").StartingIn(1200);
-};
+// Inline code chip (InlineFlowBuilder.EmitChip)
+var chip = new Label(content) { enableRichText = false };
+chip.AddToClassList("md-code-inline");
+chip.RegisterCallback<ClickEvent>(_ => {
+    GUIUtility.systemCopyBuffer = content;
+    chip.tooltip = "Copied!";
+    chip.schedule.Execute(() => chip.tooltip = "Click to copy").StartingIn(1000);
+});
 ```
 
 ## Inspector Integration
