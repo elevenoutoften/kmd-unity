@@ -245,8 +245,11 @@ namespace Kmd.MarkdownReader
                         }
                         else
                         {
-                            // Oversized downloads must still be destroyed on eviction/clear,
-                            // but are intentionally not cached across renders.
+                            // Oversized downloads are cached so re-render reuses the single
+                            // texture instead of leaking a new one each render. They are still
+                            // tracked in Owned so ClearCache/Evict destroys them on session end
+                            // or when the file changes.
+                            AddToCache(cacheKey, texture);
                             Owned.Add(texture);
                         }
                     }
