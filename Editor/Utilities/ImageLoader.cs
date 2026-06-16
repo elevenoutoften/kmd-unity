@@ -243,6 +243,12 @@ namespace Kmd.MarkdownReader
                             AddToCache(cacheKey, texture);
                             Owned.Add(texture);
                         }
+                        else
+                        {
+                            // Oversized downloads must still be destroyed on eviction/clear,
+                            // but are intentionally not cached across renders.
+                            Owned.Add(texture);
+                        }
                     }
 
                     ApplyToAttached(targets, texture);
