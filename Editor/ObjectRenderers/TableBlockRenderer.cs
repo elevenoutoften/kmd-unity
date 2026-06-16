@@ -65,14 +65,12 @@ namespace Kmd.MarkdownReader
         // UI Toolkit has no table layout: each flex row sizes its own cells to
         // their content, so columns don't line up between rows. Once the table has
         // been laid out, measure the widest cell in each column and pin every cell
-        // in that column to it. Runs once.
+        // in that column to it. Re-run the alignment when layout changes, but
+        // debounce subsequent passes while a resize is in flight.
         private static void AlignColumnsWhenLaidOut(VisualElement tableEl, List<List<VisualElement>> grid)
         {
-            EventCallback<GeometryChangedEvent> callback = null;
-            callback = _ =>
+            void RealignColumns()
             {
-                tableEl.UnregisterCallback(callback);
-
                 var columns = 0;
                 foreach (var rowCells in grid)
                 {
@@ -107,9 +105,41 @@ namespace Kmd.MarkdownReader
                         }
                     }
                 }
+
+            }
+
+            IVisualElementScheduledItem pendingRealignment = null;
+            var hasAlignedOnce = false;
+
+            EventCallback<GeometryChangedEvent> geometryCallback = null;
+            geometryCallback = _ =>
+            {
+                if (!hasAlignedOnce)
+                {
+                    hasAlignedOnce = true;
+                    RealignColumns();
+                    return;
+                }
+
+                pendingRealignment?.Pause();
+                pendingRealignment = tableEl.schedule.Execute(() =>
+                {
+                    pendingRealignment = null;
+                    RealignColumns();
+                }).StartingIn(100);
             };
 
-            tableEl.RegisterCallback(callback);
+            EventCallback<DetachFromPanelEvent> detachCallback = null;
+            detachCallback = _ =>
+            {
+                pendingRealignment?.Pause();
+                pendingRealignment = null;
+                tableEl.UnregisterCallback(geometryCallback);
+                tableEl.UnregisterCallback(detachCallback);
+            };
+
+            tableEl.RegisterCallback(geometryCallback);
+            tableEl.RegisterCallback(detachCallback);
         }
     }
 }
