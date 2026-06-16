@@ -46,6 +46,20 @@ namespace Kmd.MarkdownReader.Tests
             return markdown.ToString();
         }
 
+        private static string BuildLargeInlineDocument()
+        {
+            var markdown = new StringBuilder();
+            for (var i = 1; i <= 200; i++)
+            {
+                markdown
+                    .Append("Text `code").Append(i).Append("a` more [link").Append(i).Append("a](https://example.com/").Append(i).Append("a) ")
+                    .Append("`code").Append(i).Append("b` [link").Append(i).Append("b](https://example.com/").Append(i).Append("b) ")
+                    .Append("`code").Append(i).Append("c` trailing.\n\n");
+            }
+
+            return markdown.ToString();
+        }
+
         [Test]
         public void Heading_RendersLevelClass()
         {
@@ -215,6 +229,13 @@ namespace Kmd.MarkdownReader.Tests
         }
 
         [Test]
+        public void LargeInlineDocument_ElementCountBudget()
+        {
+            var body = Render(BuildLargeInlineDocument());
+            Assert.Less(CountDescendants(body), 5000);
+        }
+
+        [Test]
         public void LargeDocument_RenderTimeBudget()
         {
             if (Type.GetType("System.Diagnostics.Stopwatch") == null)
@@ -229,6 +250,23 @@ namespace Kmd.MarkdownReader.Tests
             stopwatch.Stop();
 
             Assert.Less(stopwatch.ElapsedMilliseconds, 500);
+        }
+
+        [Test]
+        public void LargeInlineDocument_RenderTimeBudget()
+        {
+            if (Type.GetType("System.Diagnostics.Stopwatch") == null)
+            {
+                Assert.Ignore("Stopwatch not available");
+            }
+
+            var markdown = BuildLargeInlineDocument();
+            Render(markdown); // warm up
+            var stopwatch = Stopwatch.StartNew();
+            Render(markdown);
+            stopwatch.Stop();
+
+            Assert.Less(stopwatch.ElapsedMilliseconds, 1000);
         }
     }
 }
