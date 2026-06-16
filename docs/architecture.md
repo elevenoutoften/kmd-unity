@@ -53,7 +53,7 @@ Each Markdig AST node type maps to a custom `MarkdownObjectRenderer` that produc
 | `TableBlock` | `TableBlockRenderer` | VisualElement grid inside ScrollView; columns are measured and pinned once after first layout |
 | `AlertBlock` | `AlertBlockRenderer` | Styled callout with icon + title + body |
 | `EmphasisInline` | `EmphasisInlineRenderer` | `<b>` / `<i>` / `<s>` rich text tags |
-| `CodeInline` | `CodeInlineRenderer` | Inline code chip (click-to-copy) via `InlineFlowBuilder.EmitChip` |
+| `CodeInline` | `CodeInlineRenderer` | Tinted `<mark>` highlight; click-to-copy chip in paragraph flows via `InlineFlowBuilder.EmitChip` |
 | `LinkInline` | `LinkInlineRenderer` | `<link="url">` rich text (best-effort click routing) |
 | `AutolinkInline` | `AutolinkInlineRenderer` | `<link="url">` rich text for bare URLs/emails |
 | `LiteralInline` | `LiteralInlineRenderer` | Plain text (`<`-neutralized for rich text) |
@@ -80,7 +80,7 @@ Each code block renders as a single `Label` with `enableRichText = true` and a m
 | Paragraphs | ✅ v1 | |
 | Bold / Italic / Strikethrough | ✅ v1 | `<b>`, `<i>`, `<s>` rich text tags |
 | Links (fragment, internal, external) | ✅ v1 | `<link>` tags + sanitized URL policy; click-to-open is best-effort (see Security) |
-| Inline code | ✅ v1 | Click-to-copy chip via `InlineFlowBuilder` |
+| Inline code | ✅ v1 | Tinted `<mark>` highlight; click-to-copy chip in paragraphs via `InlineFlowBuilder` |
 | Fenced code blocks | ✅ v1 | Syntax highlighting + copy button |
 | Indented code blocks | ✅ v1 | Plain monospace |
 | GFM tables | ✅ v1 | Grid layout in ScrollView; widths do not reflow on window resize |

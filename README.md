@@ -38,7 +38,7 @@ Pin a specific commit/tag by appending a ref, e.g. `…/kmd-unity.git#v0.1.0`.
 
 - Headings (h1–h6) with the kmd typographic scale
 - Paragraphs, **bold**, *italic*, ~~strikethrough~~, and `inline code`
-  (styled as a tinted chip)
+  (tinted highlight; click-to-copy in paragraphs)
 - Fenced code blocks with syntax highlighting (via ColorCode) and a copy button;
   indented code blocks
 - Ordered, unordered, and task lists (read-only ☑/☐ glyphs), with nesting
