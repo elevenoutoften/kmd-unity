@@ -23,10 +23,16 @@ namespace Kmd.MarkdownReader
     {
         private const int MaxCacheSize = 64;
         private const int MaxTexturePixels = 4096 * 4096;
+        private const long MaxCachedTexturePixels = MaxTexturePixels * 2L;
         private const int TimeoutSeconds = 30;
 
         // Texture per normalized source key, reused across re-renders.
         private static readonly Dictionary<string, Texture> Cache = new Dictionary<string, Texture>();
+
+        // Failed-but-stable results keyed by normalized source. This avoids repeatedly
+        // downloading/decoding an oversized image on every re-render just to reject it
+        // again.
+        private static readonly Dictionary<string, string> Rejected = new Dictionary<string, string>();
 
         // Most-recently-used keys are at the front; least-recently-used keys are
         // evicted from the back when the cache grows beyond MaxCacheSize.
@@ -37,6 +43,7 @@ namespace Kmd.MarkdownReader
         // owned native objects and must be destroyed on clear. AssetDatabase textures
         // (the "search:" path) are borrowed and must NEVER be destroyed.
         private static readonly HashSet<Texture> Owned = new HashSet<Texture>();
+        private static long CachedTexturePixels;
 
         // In-flight requests keyed by source key; the same image referenced twice (or
         // re-requested by a newer render before the first finishes) fetches only once.
@@ -105,6 +112,8 @@ namespace Kmd.MarkdownReader
 
             Owned.Clear();
             Cache.Clear();
+            Rejected.Clear();
+            CachedTexturePixels = 0;
             LruKeys.Clear();
             LruNodes.Clear();
             Pending.Clear();
@@ -122,6 +131,14 @@ namespace Kmd.MarkdownReader
             var texture = FindAssetTexture(name);
             if (texture != null)
             {
+                if (PixelCount(texture) > MaxTexturePixels)
+                {
+                    var message = PixelBudgetMessage(texture);
+                    AddRejected(key, message);
+                    SetError(image, message);
+                    return;
+                }
+
                 AddToCache(key, texture); // borrowed (AssetDatabase-owned) — not added to Owned
                 Apply(image, texture);
             }
@@ -198,6 +215,13 @@ namespace Kmd.MarkdownReader
 
         private static bool TryApplyCached(Image image, string key)
         {
+            if (Rejected.TryGetValue(key, out var message))
+            {
+                Touch(key);
+                SetError(image, message);
+                return true;
+            }
+
             if (Cache.TryGetValue(key, out var texture))
             {
                 if (texture != null)
@@ -242,19 +266,20 @@ namespace Kmd.MarkdownReader
                         {
                             AddToCache(cacheKey, texture);
                             Owned.Add(texture);
+                            ApplyToAttached(targets, texture);
                         }
                         else
                         {
-                            // Oversized downloads are cached so re-render reuses the single
-                            // texture instead of leaking a new one each render. They are still
-                            // tracked in Owned so ClearCache/Evict destroys them on session end
-                            // or when the file changes.
-                            AddToCache(cacheKey, texture);
-                            Owned.Add(texture);
+                            var message = PixelBudgetMessage(texture);
+                            AddRejected(cacheKey, message);
+                            UnityEngine.Object.DestroyImmediate(texture);
+                            SetErrorOnAttached(targets, message);
                         }
                     }
-
-                    ApplyToAttached(targets, texture);
+                    else
+                    {
+                        SetErrorOnAttached(targets, "download did not produce a texture");
+                    }
                 }
                 else
                 {
@@ -271,11 +296,14 @@ namespace Kmd.MarkdownReader
             if (Cache.TryGetValue(key, out var texture))
             {
                 Cache.Remove(key);
+                CachedTexturePixels -= PixelCount(texture);
                 if (texture != null && Owned.Remove(texture))
                 {
                     UnityEngine.Object.DestroyImmediate(texture);
                 }
             }
+
+            Rejected.Remove(key);
 
             if (LruNodes.TryGetValue(key, out var node))
             {
@@ -286,13 +314,65 @@ namespace Kmd.MarkdownReader
 
         private static void AddToCache(string key, Texture texture)
         {
+            Cache.TryGetValue(key, out var previous);
+            if (previous != null && previous != texture)
+            {
+                CachedTexturePixels -= PixelCount(previous);
+                if (Owned.Remove(previous))
+                {
+                    UnityEngine.Object.DestroyImmediate(previous);
+                }
+            }
+
+            Rejected.Remove(key);
             Cache[key] = texture;
+            if (previous != texture)
+            {
+                CachedTexturePixels += PixelCount(texture);
+            }
+
             Touch(key);
 
-            while (Cache.Count > MaxCacheSize && LruKeys.Last != null)
+            TrimRememberedResults();
+        }
+
+        private static void AddRejected(string key, string message)
+        {
+            if (Cache.TryGetValue(key, out var texture))
+            {
+                Cache.Remove(key);
+                CachedTexturePixels -= PixelCount(texture);
+                if (texture != null && Owned.Remove(texture))
+                {
+                    UnityEngine.Object.DestroyImmediate(texture);
+                }
+            }
+
+            Rejected[key] = message;
+            Touch(key);
+            TrimRememberedResults();
+        }
+
+        private static void TrimRememberedResults()
+        {
+            while ((Cache.Count + Rejected.Count > MaxCacheSize
+                    || CachedTexturePixels > MaxCachedTexturePixels)
+                && LruKeys.Last != null)
             {
                 Evict(LruKeys.Last.Value);
             }
+        }
+
+        private static long PixelCount(Texture texture)
+        {
+            return texture == null ? 0 : (long)texture.width * texture.height;
+        }
+
+        private static string PixelBudgetMessage(Texture texture)
+        {
+            return "image exceeds pixel budget: "
+                + texture.width + "x" + texture.height
+                + " > " + MaxTexturePixels + " pixels";
         }
 
         private static void Touch(string key)
@@ -356,6 +436,7 @@ namespace Kmd.MarkdownReader
 
         private static void SetError(Image image, string message)
         {
+            image.image = null;
             image.RemoveFromClassList("md-image-loading");
             image.AddToClassList("md-image-error");
             image.tooltip = "Image failed to load: " + message;

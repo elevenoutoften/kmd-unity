@@ -124,7 +124,6 @@
     position: absolute;
     top: 8px;
     right: 8px;
-    opacity: 0;
     font-size: 11px;
     color: #9aa0ab;
     background-color: #222428;
@@ -145,14 +144,12 @@
     padding-top: 2px;
     padding-bottom: 2px;
 }
-.md-codeblock:hover .md-copy-button { opacity: 1; }
 
 /* Tables — kmd uses horizontal rules only (no outer or vertical borders). --- */
 .md-table-scroll { margin-top: 6px; margin-bottom: 16px; max-width: 100%; }
 .md-table { flex-direction: column; }
 .md-table-header { flex-direction: row; background-color: #2c2f35; }
 .md-table-row { flex-direction: row; }
-.md-table-row:hover { background-color: #2c2f35; }
 .md-th,
 .md-td {
     flex-shrink: 0;
@@ -313,7 +310,6 @@
     border-bottom-right-radius: 6px;
     white-space: nowrap;
 }
-.md-outline-item:hover { color: #e8eaed; }
 .md-outline-active { color: #e8eaed; border-left-width: 2px; border-left-color: #9b6dff; }
 .md-outline-level-1 { padding-left: 14px; }
 .md-outline-level-2 { padding-left: 30px; }

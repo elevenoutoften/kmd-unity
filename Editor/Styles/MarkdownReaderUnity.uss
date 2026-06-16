@@ -131,7 +131,6 @@
     position: absolute;
     top: 8px;
     right: 8px;
-    opacity: 0;
     font-size: 11px;
     color: var(--unity-colors-default-text);
     background-color: rgba(128, 128, 128, 0.2);
@@ -152,14 +151,12 @@
     padding-top: 2px;
     padding-bottom: 2px;
 }
-.md-codeblock:hover .md-copy-button { opacity: 1; }
 
 /* Tables — horizontal rules only (no outer or vertical borders). ---------- */
 .md-table-scroll { margin-top: 6px; margin-bottom: 16px; max-width: 100%; }
 .md-table { flex-direction: column; }
 .md-table-header { flex-direction: row; background-color: rgba(128, 128, 128, 0.28); }
 .md-table-row { flex-direction: row; }
-.md-table-row:hover { background-color: rgba(128, 128, 128, 0.1); }
 .md-th,
 .md-td {
     flex-shrink: 0;
@@ -322,7 +319,6 @@
     border-bottom-right-radius: 6px;
     white-space: nowrap;
 }
-.md-outline-item:hover { opacity: 1; }
 .md-outline-active { opacity: 1; border-left-width: 2px; border-left-color: #9b6dff; }
 .md-outline-level-1 { padding-left: 14px; }
 .md-outline-level-2 { padding-left: 30px; }
